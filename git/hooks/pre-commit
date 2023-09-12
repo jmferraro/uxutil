@@ -1,0 +1,77 @@
+#!/bin/bash
+# put in .git/hooks
+
+echo "Running pre-commit-hook..."
+
+RET=0
+FAIL_WORDS=()
+FAIL_REGEX=()
+FAIL_REGEX+=("\bFIXME\b")     # items marked as FIXME should be fixed before being committed
+FAIL_REGEX=("\bNOCOMMIT\b")   # explicit DO NOT COMMIT flag
+FAIL_REGEX=("\bXXX\n")        # another flag to stop commits
+FAIL_REGEX+=("^<<<<<<<\s*$")  # merge conflict remnant
+FAIL_REGEX+=("^=======\s*$")  # merge conflict remnant
+FAIL_REGEX+=("^>>>>>>>\s*$")  # merge conflict remnant
+FAIL_WORDS+=("NULL")          # all NULL should now be nullptr
+
+ROOT_PATH=$(git rev-parse --show-cdup)
+
+CACHED="--cached"
+[[ "--all" == "$1" ]] && CACHED=""
+
+# get a list of the files to be committed: exclude Deleted and Renamed
+FILES=($(git diff ${CACHED} --name-status | awk '/^[^DR]/ { print $2 }'))
+# add Renamed (new name)
+FILES+=($(git diff ${CACHED} --name-status | awk '/^R[0-9]+/ { print $3 }'))
+DEL_FILES+=($(git diff ${CACHED} --name-status | awk '/^D/ { print $2 }'))
+
+# loop over all the files
+for FN in "${FILES[@]}"; do
+  [[ -d "$FN" ]] && { echo "Skipping directory: ${FN}"; continue; }
+  [[ "$FN" =~ \.xz$ ]] && { echo "Skipping .xz file: ${FN}"; continue; }
+  for WD in "${FAIL_WORDS[@]}"; do
+    if fgrep -q "$WD" ${ROOT_PATH}${FN}; then
+    echo "$FN contains $WD"
+    RET=$((RET+1))
+    fi
+  done
+  # again, using regex fail list
+  for RE in "${FAIL_REGEX[@]}"; do
+    if grep -q -E "${RE}" ${ROOT_PATH}${FN}; then
+      echo "$FN contains $RE"
+      RET=$((RET+1))
+    fi
+  done
+  # check for trailing whitespace
+  if grep -q -E '\s+$' ${ROOT_PATH}${FN}; then
+    echo "$FN has trailing whitespace"
+    RET=$((RET+1))
+  fi
+  # check for tabs
+  if grep -q -P '\t' ${ROOT_PATH}${FN}; then
+    if [[ "Makefile" != $FN ]]; then
+      echo "$FN has TAB characters"
+      RET=$((RET+1))
+    fi
+  fi
+done
+
+if [[ "--all" != "$1" ]]; then
+  # check both mod & cached
+  # if the file is both ccached (staged) and modified, this is likely an ovesight
+  # the contents ofthe modifed file will be checked, but the version staged will be committed
+  MODLIST=($(git diff --name-status | awk '$1 != "D" { print $2 }'))
+  BOTH=($(comm -12 <(for FN in "${FILES[@]}"; do echo "${FN}"; done|sort) <(for FN in "${MODLIST[@]}"; do echo "${FN}"; done|sort)))
+  for FN in "${BOTH[@]}"; do
+    echo "$FN is both staged and modified"
+    RET=$((RET+1))
+  done
+fi
+
+# exit ith number of failures
+if [[ $RET -gt 0 ]]; then
+  echo "pre-commit hook failed, failure count: $RET"
+fi
+
+exit $RET
+
