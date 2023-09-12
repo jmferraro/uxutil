@@ -1,0 +1,13 @@
+#!/bin/bash
+
+[[ 2 -ne $# ]] && { echo "Invalid command line"; exit 22; }
+
+[[ -f $1 ]] || { echo "File does not exist: $1"; exit 2; }
+[[ -f $2 ]] || { echo "File does not exist: $2"; exit 2; }
+
+diff -q $1 $2 2>/dev/null
+RC=$?
+[[ 0 -eq $RC ]] && echo "Files are identical"
+exit $RC
+
+

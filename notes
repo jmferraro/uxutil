@@ -1,0 +1,112 @@
+#!/bin/bash
+
+unset RGREP
+NOTES_ROOT=${HOME}/priv/notes
+VIEW=cat
+
+# --- FUNCTIONS:
+
+usage()
+{
+  echo "Usage: $(basename $0) [-eElh] <file>"
+  echo "OPTIONS:"
+  echo "  -e : edit/create the note"
+  echo "  -E : edit the note only (do NOT create)"
+  echo "  -l : use less to view the notes (default cat)"
+  echo "  -h : this help text"
+}
+
+notesgrep()
+{
+  echo ">>> notesgrep: '$1'"
+  if [[ -n $RGREP ]]; then
+    grep $RGREP -H "$1"${NOTES_ROOT}
+  else
+    find -L ${NOTES_ROOT} -type f -print0 | xargs -0 grep -H "$1"
+  fi
+
+  # look for notes files that begin with thekeyword
+  mapfile -t FILE < <(find ${NOTES_ROOT} -type f -name "$1.*")
+  for FIL in "${FILES[@]}"; do
+    echo $FIL:
+    printf '-%.0s' {1..72}; printf '\n'
+    cat -ns $FIL
+    printf '-%.0s' {1..72}; printf '\n'
+  done
+}
+
+# --- main execution:
+
+unset EDIT EDIT_ONLY
+while getopts :eElh opt
+do
+  case "$opt" in
+    e) EDIT=1 ;;
+    E) EDIT_ONLY=1 ;;
+    l) VIEW=less ;;
+    h) usage; exit 0 ;;
+    \?) echo "Unknown option: -$OPTARG"; usage; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+# validate args
+[[ -n $EDIT && -n $EDIT_ONLY ]] && { echo "both -e and -E specified"; exit 22; }
+[[ $# -gt 1 ]] && { echo "Invalid command line"; exit 22; }
+
+# check for notes dir
+if [[ ! -d $NOTES_ROOT ]]; then
+  if [[ -z $EDIT ]]; then
+    echo "No notes found!"
+    exit 2
+  else
+    mkdir -p $NOTES_ROOT
+  fi
+fi
+
+# enforce access
+chmod 700 ${HOME}/priv
+chmod 700 $NOTES_ROOT
+
+# editing / creating note?
+if [[ -n $EDIT || -n $EDIT_ONLY ]]; then
+  [[ 1 != $# ]] && { echo "Invalid command line"; exit 22; }
+  for FNAME in $NOTES_ROOT/$1.notes $NOTES_ROOT/$1; do
+    [[ -e $FNAME ]] && exec vim $FNAME
+  done
+  # if it existed, it would not reach this line
+  if [[ -z $EDIT_ONLY ]]; then
+    exec vim ${NOTES_ROOT}/$1.notes
+  else
+    echo "Note not found"
+    exit 2
+  fi
+fi
+
+# look for / print notes
+if [[ 0 -eq $# ]]; then
+  # just show all the notes
+  exec find ${NOTES_ROOT} -type f -print
+fi
+unset FOUND
+# is there a note with the specified name
+[[ -r ${NOTES_ROOT}/$1.notes ]] && exec $VIEW ${NOTES_ROOT}/$1.notes
+
+echo "TODO: Unfinished script: $0"
+
+###--- 
+###--- # does the grep have -r?
+###--- grep -q -R foo /dev/null 2> /dev/null
+###--- if [[ 0 -eq $? ]]; then
+###---   RGREP="-R"
+###--- else
+###---   grep -q -r foo /dev/null 2> /dev/null
+###---   [[ 0 -eq $? ]] && RGREP="-r"
+###--- fi
+###--- 
+###--- while [[ - -ne $# ]]; do
+###---   notesgrep "$1"
+###---   shift
+###--- done
+
+

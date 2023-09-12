@@ -1,0 +1,42 @@
+#!/bin/bash
+# quick re-write of dumppath.pl in bash
+
+dump_var()
+{
+  NAM=$1
+  if [[ "$NAM" == 'LIBPATH' ]] || [[ "$NAM" == 'LIB' ]]; then
+    [[ ! -n ${!NAM} ]] && NAM='LD_LIBRARY_PATH'
+  fi
+
+  if [[ ! -n ${!NAM} ]]; then
+    echo "Not set: $NAM"
+    return
+  fi
+
+  VAL=${!NAM}
+  [[ ! $VAL =~ :$ ]] && VAL="${VAL}:"
+
+  COUNT=0
+  while read -d':' LINE; do
+    COUNT=$((COUNT+1))
+    printf "%02d) %s\n" $COUNT "$LINE"
+  done <<< $VAL
+
+# OLD VERSION - this fails since paths can have embedded spaces
+##  PARTS=(${VAL//:/ })
+##  COUNT=0
+##  for itm in "${PARTS[@]}"; do
+##    COUNT=$((COUNT+1))
+##    printf "%02d) %s\n" ${COUNT} "$itm"
+##  done
+}
+
+if [[ $# == 0 ]]; then
+  dump_var 'PATH'
+else
+  while [[ $# -gt 0 ]]; do
+    dump_var $1
+    shift
+  done
+fi
+

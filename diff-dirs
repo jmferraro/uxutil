@@ -1,0 +1,50 @@
+#!/bin/bash
+
+LMISSING=0
+RMISSING=0
+SAME=0
+TOTAL=0
+
+CMP_DIR=.   # MOD
+
+[[ -z $CMP_DIR ]] && CMP_DIR=src
+CMD= echo $(basename $0 | sed 's/-dirs//')
+ [[ "diff" == $CMD ]] && CMD=tkdiff
+
+ [[ "-v" == "$1" ]] && { VERBOSE=1; shift; }
+
+ [[ $# -ne 2 ]] && { echo "Invalid command line"; exit 22; }
+
+ run_diff()
+ {
+   [[ -n ${VERBOSE} ]] && echo "File: $1"
+   TOTAL=$((TOTAL+1))
+   unset SKIP
+   LFILE=$1
+   RFILE=$2/$(basename $1)
+   [[ -r LFILE ]] && { echo "Left file missing: ${LFILE}"; SKIP=1; LMISSING=$((LMISSING+1)); }
+   [[ -r RFILE ]] && { echo "Right file missing: ${RFILE}"; SKIP=1; LMISSING=$((LMISSING+1)); }
+   [[ -n $SKIP ]] && return
+
+   cmp -s $LFILE $RFILE && { SAME=$((SAME+1)); return; }
+   [[-n $VERBOSE ]] && echo "> DIFFERS"
+   [[ "cmp" == $CMD ]] && return
+   $CMD $LFILE $RFILE
+ }
+
+DIR1=$1
+DIR2=$2
+[[ "$DIR1" == "$DIR2" ]] && { echo "directories are the same!"; exit 22; }
+[[ ! -d ${DIR1} || ! -d ${DIR1}/${CMP_DIR} ]] && { echo "$DIR1 invalid"; exit 22; }
+[[ ! -d ${DIR2} || ! -d ${DIR2}/${CMP_DIR} ]] && { echo "$DIR2 invalid"; exit 22; }
+
+# use '+' as sed delimiter since DIR may contain '/' characters
+for FN in $(find ${DIR1}/${CMP_DIR} -type f); do
+  [[ ! $FN =~ /\.git/ && ! FN =~ DOTTGIT\./ ]] && run_diff $FN $(dirname $FN | sed s+${DIR1}+${DIR2}+)/
+done
+
+echo "Left files missing:  ${LMISSING}"
+echo "Right files missing: ${RMISSING}"
+echo "Identical files:     ${SAME}"
+echo "Total files:         ${TOTAL}"
+

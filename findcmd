@@ -1,0 +1,18 @@
+#!/bin/bash
+
+matchit()
+{
+  [[ $(basename $1 | grep -i "$2") ]] && echo $1
+}
+
+if [[ 1 != $# ]]; then
+  [[ 0 == $# ]] && MANY="No" || MANY="Too many"
+  echo "$MANY search arguments were provided"
+  exit 22
+fi
+
+PARTS=(${PATH//:/ })
+for LOC in "${PARTS[@]}"; do
+  [[ -d "$LOC" ]] && find "$LOC" | while IFS= read -r file; do matchit "$file" "$1"; done
+done
+

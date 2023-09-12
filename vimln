@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+
+[[ $# -eq 0 ]] && exec vim
+[[ $# -gt 1 || $1 =~ ';' || $1 =~ '`' || $1 =~ '$(' ]] && { echo "Invalid command line"; exit 22; }
+[[ -e $1 || ! $1 =~ ':' ]] && exec vim \"$1\"
+
+if [[ $1 =~ ':' ]]; then
+  echo "Found ':'"
+  CN=$(echo $1 | cut -f3 -d':')
+  LN=$(echo $1 | cut -f2 -d':')
+  FN=$(echo $1 | cut -f1 -d':')
+  # force LN and CN to9 be numeric
+  LN=$((LN+0))
+  CN=$((CN+0))
+
+  # build the command line as an array so that it will handle quoting properly
+  CMD=("vim")
+  if [[ $LN -gt 0 ]]; then
+    if [[ $CN -gt 0 ]]; then
+      CMD+=("+call cursor($LN, $CN)")
+    else
+      CMD+=("+$LN")
+    fi
+  fi
+  CMD+=($FN)
+
+  exec "${CMD[@]}"
+fi
+

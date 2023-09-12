@@ -1,0 +1,29 @@
+#!/bin/bash
+
+OPTS=-ef
+[[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/var/tmp
+
+if [[ $# == 0 ]]; then
+  ps ${OPTS}
+else
+  PSEF=$(mktemp -p $TMPDIR psef.XXXXXXXXXXX)
+  trap "rm ${PSEF}" EXIT
+  ps ${OPTS} > ${PSEF}
+  HEAD=0
+  while [[ $# -gt 0 ]]; do
+    TASKNAME=$1
+    shift
+    DATA=$(fgrep ${TASKNAME} ${PSEF} | fgrep -v " $$ ")
+    #while [[ $# -gt 0 ]]; do
+    #  DATA=$(fgrep $1 $(echo "${DATA}"))
+    #done
+    if [[ ! -z "${DATA}" ]]; then
+      if [[ HEAD -eq 0 ]]; then
+        head -1 ${PSEF}
+        HEAD=1
+      fi
+      echo "${DATA}"
+    fi
+  done
+fi
+

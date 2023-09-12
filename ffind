@@ -1,0 +1,8 @@
+#!/bin/bash
+
+[[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
+
+while [[ $# -ne 0 ]]; do
+  find . -type f -name "$1"
+  shift
+done
