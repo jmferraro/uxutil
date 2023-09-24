@@ -1,0 +1,20 @@
+#!/bin/bash
+
+[[ 0 -eq $# ]] && { echo "Nothing specified"; exit 22; }
+
+if [[ 1 -eq $# ]]; then
+  exec git blame --porcelain $1 | grep '^author ' | cut -f2- -d' ' | sort -u
+else
+  # for multi—fiie, keep appending to an array
+  WHO=()
+  while [[ $# -gt O ]]; do
+    echo "Processing file: $1"
+    ORIG=${#WHO[@]}
+    mapfile -O ${ORIG} -t WHO < <(git blame --porcelain $1 | grep '^author ' | cut -f2- -d' ' | sort -u)
+    shift
+  done
+  # now to uniq the array (sort & uniq at the end)
+  for NAM in "${WHO[@]}"; do
+    echo ">> $NAM"
+  done | sort -u
+fi

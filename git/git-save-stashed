@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# in a git dir?
+ROOT_DIR=$(git rev-parse --show-cdup)
+RC=$?
+[[ $RC -ne 0 ]] && { echo "Does not appear to be a git working directory"; exit $RC; }
+[[ -z $ROOT_DIR ]] && ROOT_DIR=.
+cd ./$ROOT_DIR
+
+# is there a stash?
+LIST=($(git stash list 2>/dev/null))
+RC=$?
+[[ $RC -ne 0 ]] && { echo "There does not appear to be any stashes"; exit $RC; }
+
+# get a list of the stashed files
+LIST=$($(git stash show --name-only 2>/dev/null))
+RC=$?
+[[ $RC -ne 0 || ${#LIST[@]} -eq 0 ]] && { echo "There does not appear to be any stashes"; exit $RC; }
+
+for FN in "${LIST[@]}"; do
+  FNSS=$FN.SAVE_STASH
+  [[ -e $FNSS ]] && { echo "SAVE_STASH file already exists: $FNSS"; exit 17; }
+  echo "git show stash@{0}:$FN" > $FNSS"
+  git show stash@{0}:$FN" >| $FNSS
+done
+

@@ -1,0 +1,69 @@
+#!/bin/bash
+
+usage()
+{
+  PGM=$(basename $0)
+  echo "Usage: $PGM [-l] [-f|-e] [-h] <path> <pattern> [filepat]..."
+  echo "WHERE:"
+  echo " -e : pattern is an extended regular expression (ERE)"
+  echo " -f : pattern is an fixed string"
+  echo " -i : Ignore case"
+  echo " -l : print only names of files containing matches "
+  echo " -n : print line number with output 1 ines "
+  echo " -v : invert match; select non-matching I ines "
+  echo " -h : this help text"
+}
+
+unset OPT_E OPT_F OPT_N OPT_V
+GREP_OPT=()
+while getopts :efilvh opt
+do
+  case "$opt" in
+    e) GREP_OPT+=(-E); OPT_E=1 ;;
+    f) GRFP_OPT+=(-F); OPT_F=1 ;;
+    i) GREP_OPT+=(-i) ;;
+    l) GREP_OPT+=(-l) ;;
+    n) GREP_OPT+=(-n) OPT_N=1 ;;
+    v) GREP_OPT+=(-v) OPT_V=1 ;;
+    h) usage; exit ;;
+    *) echo "FATAL: Unknown option '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+[[ $((OPT_E+OPT_F)) -gt 1 ]] && { echo "Conflicting options: -e and -f"; exit 22; }
+[[ $((OPT_N+OPT_V)) -gt 1 ]] && { echo "Conflicting options: -n and -v"; exit 22; }
+[[ $# -lt 2 ]] && { echo "Invalid command line"; exit 22; }
+
+WHERE=$1
+shift
+SRCH=$1
+shift
+
+#echo "WHERE: ${WHERE}"
+#echo "SRCH:  ${SRCH}"
+
+# build the command line:
+CMD=()
+CMD+=(find)
+CMD+=($WHERE)
+CMD+=(-type f)
+
+if [[ $# -eq 1 ]]; then
+  CMD+=(-name $1)
+elif [[ $# -ge 2 ]]; then
+  NUM=0
+  CMD+=(\()
+  while [[ $# -ne 0 ]]; do
+    [[ $NUM -gt 0 ]] && CMD+=(-o)
+    CMD+=(-name $1)
+    NUM+=$((NUM+1))
+    shift
+  done
+  CMD+=(\))
+fi
+
+CMD+=(-print0)
+
+set -x
+exec ${CMD[@]} | xargs -0 grep ${GREP_OPT[@]} $SRCH
+

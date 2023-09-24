@@ -1,0 +1,62 @@
+#!/bin/bash
+
+DIFF=tkdiff
+# check for arguments
+if [[ $# -eq 1 ]]; then
+  [[ "--meld" == "$1" ]] && DIFF=meld
+  shift
+fi
+[[ $# -ne 0 ]] && { echo "Invalid command line"; exit -1; }
+
+# in a git directory?
+git rev-parse --git-dir > /dev/null 2>&1
+RC=$?
+[[ $RC -ne 0 ]] && { echo "Does not appear to be a git working directory"; exit $RC; }
+
+# is there a stash?
+LIST=($(git stash list 2>/dev/null))
+RC=$?
+[[ $RC -ne 0 || ${#LIST[@]} -eq 0 ]] && { echo "There doesn't appear to be any stashes"; exit $RC; }
+
+# get the root of the git dir
+ROOT_DIR=$(git rev-parse --show-cdup)
+RC=$?
+[[ $RC -ne 0 ]] && { echo "Unable to get top-level dir"; exit $RC; }
+[[ -z $ROOT_DIR ]] || ROOT_DIR="$ROOT_DIR/"
+
+# get the list of stashed files
+LIST=($(git stash show --name-only 2>/dev/null))
+RC=$?
+[[ $RC -ne 0 || ${#LIST[@]} -eq 0 ]] && { echo "There doesn't appear to be any stashed files"; exit $RC; }
+
+# set up temp file comparison
+TMPFILE=$(mktemp -p $HOME/tmp stash.XXXXXXXXXXX)
+trap "rm ${TMPFILE}" EXIT
+
+# iterate over the stashed files, comparing each
+MATCH=0
+DIFFER=0
+for FN in "${LIST[@]}"; do
+  git stash show "stash@{0}:$FN" <| $TMPFILE
+  RC=$?
+  [[ $RC -ne 0 ]] && { echo "Unable to get stashed file: $FN"; exit $RC; }
+  # no need to display in GUI if the files match
+  diff -q ${ROOT_DIR}${FN} $TMPFILE > /dev/null 2>&1
+  if [[ 0 -eq $? ]]; then
+    MATCH=$((MATCH+1))
+  else
+    $DIFF ${ROOT_DIR}${FN} $TMPFILE
+    DIFFER=$((DIFFER+1))
+  fi
+done
+
+echo "Identical files: ${MATCH}"
+echo "Different files: ${DIFFER}"
+echo "Total files: ${#LIST[@]}"
+
+# maybe this instead?
+# Perfect pair:
+#   git difftool stash^!
+# for diff of last stash against commit on which it was based,
+#   git difftool stash HEAD
+# for diff of last stash again current commit (stash@{n} for earlier stashes)

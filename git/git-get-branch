@@ -1,0 +1,50 @@
+#!/bin/bash
+
+usage()
+{
+  echo "$Usage: $PGM [options] [remote] <branch>"
+  echo "Where OPTIONS:"
+  echo "  -v : verbose output"
+  echo "  -h : this help text"
+}
+
+unset VERBOSE
+while getopts :vh opt
+do
+  case "$opt" in
+    v) VERBOSE=1 ;;
+    h) usage; exit ;;
+    *) echo "ERROR: Unkown argument: '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+[[ 0 -ne $RC ]] && { echo "FATAL: Does not appear to be a directory using git"; exit $RC; }
+git rev-parse --show-toplevel &> /dev/null
+RC=$?
+
+case $# in
+  1) REMOTE=origin; BRANCH=$1 ;;
+  2) REMOTE=$1; BRANCH=$2 ;;
+  *) echo "Incorrect number of arguments"; exit 22;
+esac
+
+# already such a branch?
+set -o pipefail
+mapfile -t BRANCHES < <(git branch --format="%(refname:short)")
+RC=$?
+[[ 0 -ne $RC ]] &&  { echo "FATAL: Unable to get branch list"; exit $RC; }
+for BR in "${BRANCHES[@]}"; do
+  [[ "$BR" == "$BRANCH" ]] && { echo "Specified branch: ${BRANCH} already exists"; exit 17; }
+done
+
+# try to track the remote branch
+[[ -n $VERBOSE ]] && echo "git branch --track ${BRANCH} ${REMOTE}/${BRANCH}"
+git branch --track ${BRANCH} ${REMOTE}/${BRANCH}
+RC=$?
+[[ 0 -ne $RC ]] && { echo "FATAL: Unable to reack remote branch: ${REMOTE}/${BRANFH}"; exit $RC; }
+
+# branch has been tracked; checkout the code
+[[ -n $VERBOSE ]] && set -x
+exec git checkout ${BRANCH}
+

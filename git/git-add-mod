@@ -1,0 +1,56 @@
+#!/bin/bash
+
+usage()
+{
+  echo "$(basename $0) [OPTIONS]"
+  echo "Where:"
+  echo "  -n : dryrun; do not execute, show commands only"
+  echo "  -v : verbose"
+  echo "  -h : this help text"
+}
+
+unset DRYRUN VERBOSE
+while getopts :nvh opt
+do
+  case "$opt" in
+    n) DRYRUN=1 ;;
+    v) VERBOSE=1 ;;
+    h) usage; exit ;;
+    *) echo "ERROR: Unknown option '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+[[ 0 -ne $# ]] && { echo "Invalid command line"; exit 22; }
+
+# get the the status of the files from git
+mapfile -t STATUS < <(git status --porcelain)
+
+# filter out the modified files that have not already been added
+NAMS=()
+for ITM in "${STATUS[@]}"; do
+  if [[ "M" == "${ITM:1:1}" ]]; then   # 2nd char is 'M' : file changed since index
+    NAMS+=($(echo $ITM | awk '{print $NF}'))
+  fi
+done
+
+# status --porcelain shows the files relative to the root of he project
+# cd to that location and add the files from there
+cd ./$(git rev-parse --show-cdup)
+[[ 0 -ne $? ]] && { echo "Unable to find top of git tree"; exit 2; }
+
+# show file if verbose and not dryrun (dryrun will show anyway)
+if [[ -n $VERBOSE ]]; then
+  for NAM in "${NAMS[@]}"; do
+    echo "Modified: ${NAM}"
+  done
+fi
+
+# anything changed?
+[[ 0 -eq ${#NAMS[@]} ]] && { echo "No modified files found"; exit; }
+
+# issue the command
+[[ -z $DRYRUN ]] && CMD="git add" || CMD="echo git add"
+
+exec echo "${NAMS[@]}" | xargs $CMD
+

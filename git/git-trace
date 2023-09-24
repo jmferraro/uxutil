@@ -1,0 +1,10 @@
+#!/bin/bash
+
+[[ 0 == $# ]] && { echo "Nothing to do"; exit 22; }
+
+export GIT_CURL_VERBOSE=1
+export GIT_TRACE=1
+export GIT_TRACE_PACKET=1
+
+exec git "$@"
+

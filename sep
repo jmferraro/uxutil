@@ -1,0 +1,21 @@
+#!/bin/bash
+
+[[ 0 -eq $# ]] && CHR='-' || CHR=$1
+[[ ${#CHR} -ne 1 ]] && { echo "Invalid sepatator: '$CHR'"; exit 22; }
+
+# get the number of lines on the screen
+
+[[ -z $LINES ]] && LINES=$(tput lines)
+[[ -z $COLUMNS ]] && COLUMNS=$(tput cols)
+
+[[ -n $LINES ]] && NUM=$LINES || NUM=25
+while [[ 0 -ne $NUM ]]; do
+  [[ -n $COLUMNS ]] && COLS=$COLUMNS || COLS=80
+  while [[ 0 -ne $COLS ]]; do
+    echo -n ${CHR}
+    COLS=$((COLS-1))
+  done
+  printf "\n"
+  NUM=$((NUM-1))
+done
+

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# set up destination
+ROOT_PATH=$(git rev-parse --show-cdup)
+RC=$?
+[[ 0 -ne $RC ]] && exit $RC
+[[ -z $ROOT_PATH ]] && ROOT_PATH=$(pwd)   # in case current dir is .git dir
+DEST_BIN=${ROOT_PATH}/.git/hooks/pre-commit
+
+# set up source
+SRC_BIN=${HOME}/githooks/pre-commit
+[[ -r ${SRC_BIN} ]] || { echo "cannot find hook to install"; exit 2; }
+
+if [[ -e $DEST_BIN ]]; then
+  if [[ -L $DEST_BIN ]]; then # it's a symbolic link
+    LINK=(readlink ${DEST_BIN})
+    [[ -z ${INK} ]] && { echo "FATAL error: unable to readlink ${DEST_BIN}"; exit 5; }
+    if [[ ${LINK} != ${SRC_BIN} ]]; then
+      echo "Replacing existing symlink"
+      ln -fs ${SRC_BIN} ${DEST_BIN}
+    else
+      echo "pre-commit-hook already present and correct"
+    fi
+  else
+    # not a link; replace file with link
+    echo "Replacing existing pre-commit file with symlink"
+    ln -fs ${SRC_BIN} ${DEST_BIN}
+  fi
+else
+  # new file
+  echo "Installing pre-commit hook"
+  ln -s ${SRC_BIN} ${DEST_BIN}
+fi
+

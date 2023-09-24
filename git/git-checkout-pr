@@ -1,0 +1,60 @@
+#!/bin/bash
+
+OPT_FORCE=''
+OPT_REMOTE=origin
+
+usage()
+{
+  arg0=$(basename $0)
+  echo "Usage:"
+  echo "  $arg0 [-f] [-v] [-r <remote>] <pull request number>"
+  echo "Where:"
+  echo "  -f        : force the checkout"
+  echo "  -r remote : specify the name of the remotre repository (default: $OPT_REMOTE)"
+  echo "  -v        : verbose mode"
+}
+
+fatal()
+{
+  echo "ERROR: $1"
+  usage
+  exit 1
+}
+
+# parse options
+while getopts :hfrv:\?- opt
+do
+  case "$opt" in
+    f) OPT_FORCE='-f' ;;
+    r) OPT_REMOTE=$OPTARG ;;
+    h) usage; exit ;;
+    v) OPT_VERBOSE=1 ;;
+    :) fatal "option: '-$OPTARG' missing required argument" ;; 
+    \?) fatal "Unknown option: $opt" ;;
+  esac
+done
+shift $((OPTIND-1))
+
+# should only be 1 argument
+[[ $# != 1 ]] && fatal "Incorrect command line"
+
+# verify argument is numeric
+[[ ! $1 =~ ^[0-9]+$ ]] && fatal "Invalid pull request number"
+
+# assuming all pull requests are into origin
+URL=$(git remote get-url ${OPT_REMOTE})
+RC=$?
+[[ 0 != $RC || -z $URL ]] && exit
+
+# update the tags to get the pull request information
+git fetch --tags --progress $URL refs/pull-requests/*:refs/remotes/${OPT_REMOTE}/pull-requests/*
+
+# try to get the commit id of the PR
+COMMIT_ID=$(git rev-parse refs/remotes/${OPT_REMOTE}/pull-requests/$1/from^{commit})
+RC=$?
+[[ 0 != $RC || -z $COMMIT_ID ]] && exit
+[[ 1 == $VERBOSE ]] && echo "pulling commit id: $COMMIT_ID"
+
+exec git checkout $OPT_FORCE $COMMIT_ID
+
+

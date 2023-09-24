@@ -1,0 +1,27 @@
+#!/bin/bash
+
+usage()
+{
+  PGM=$(basename $0)
+}
+
+PATS=()
+WHERE=.
+while getopts :cd:h opt
+do
+  case "$opt" in
+    c) PATS=(*.c *.cpp *.h) ;;
+    d) WHERE=$OPTARG ;;
+    h) usage; exit ;;
+    :) echo "Missing argument for '-$OPTARG'"; exit 22 ;;
+    *) echo "? Unknown argument: '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+[[ $# -eq 0 ]] && { echo "Nothing specified"; exit 22; }
+
+
+set -x
+exec rgrep $WHERE "$@" ${PATS[@]}
+
