@@ -7,7 +7,7 @@ usage()
   echo "  -c : cumulative sums"
   echo "  -v : verbose"
   echo "  -w : ignore whitespace"
-  echo "  -? : this help"
+  echo "  -h : this help"
 }
 
 trim()
@@ -21,20 +21,25 @@ trim()
 }
 
 unset CUME VERBOSE TRIM
-while getopts cvw\?- opt
+while getopts :cvwh opt
 do
   case "$opt" in
     c) CUME=1 ;;
     v) VERBOSE=1 ;;
     w) TRIM=1 ;;
-    \?) # unknown flag
-      usage
-      exit
+    h) usage; exit ;;
+    *) echo "ERROR: unknown option: '-$OPTARG'"; exit 22 ;;
   esac
 done
 shift $((OPTIND-1))
 
-[[ 1 != $# ]] && { echo "ERROR: Invalid command line"; exit 4; }
+# if SHASUM is not available, use md5sum
+HASHCMD=shasum
+if ! type -f shasum &> /dev/null; then
+  HASHCMD=md5sum
+fi
+
+[[ 1 != $# ]] && { echo "ERROR: Invalid command line"; exit 22; }
 
 lnum=0
 unset lines
