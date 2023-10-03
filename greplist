@@ -1,0 +1,13 @@
+#!/bin/bash
+# grep for string in each file in specified list(s)
+[[ 0 -eq $# ]] && { echo "No files specified"; exit 22; }
+STR=$1
+shift
+
+[[ 0 -eq $# ]] && { echo "No search term specified"; exit 22; }
+
+while [[ $# -gt 0 ]]; do
+  while read filename; do grep -Hi $STR "$filename"; done < $1
+  shift
+done
+

@@ -1,0 +1,55 @@
+#!/bin/bash
+
+usage()
+{
+  echo "Usage: $(basename $0) [OPTIONS] <file>"
+  echo "OPTIONS:"
+  echo "  -c : cumulative sums"
+  echo "  -v : verbose"
+  echo "  -w : ignore whitespace"
+  echo "  -? : this help"
+}
+
+trim()
+{
+  local var="$*"
+  # remove leading whitespace characters
+  var="${var#"${var%%[![:space:]]*}"}"
+  # remove trailing whitespace characters
+  var="${var%"${var##*[![:space:]]}"}"
+  echo -n "$var"
+}
+
+unset CUME VERBOSE TRIM
+while getopts cvw\?- opt
+do
+  case "$opt" in
+    c) CUME=1 ;;
+    v) VERBOSE=1 ;;
+    w) TRIM=1 ;;
+    \?) # unknown flag
+      usage
+      exit
+  esac
+done
+shift $((OPTIND-1))
+
+[[ 1 != $# ]] && { echo "ERROR: Invalid command line"; exit 4; }
+
+lnum=0
+unset lines
+while IFS='' read -r line || [[ -n "$line" ]]; do
+  if [[ -n $TRIM ]]; then
+    line=$(trim $line)
+  fi
+  lnum=$((lnum+1))
+  fmtln=$(printf "%06d" $lnum)
+  [[ -n $VERBOSE ]] && tail=" : $line"
+  if [[ -n $CUME ]]; then
+    if [[ -n $lines ]]; then lines="${lines}\n"; fi
+    lines="${lines}${line}"
+    line=${lines}
+  fi
+  echo "$fmtln: $(echo "$line" | shasum | cut -f1 -d' ')$tail"
+done < "$1"
+

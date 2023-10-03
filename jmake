@@ -1,0 +1,61 @@
+#!/bin/bash
+
+usage()
+{
+  echo "Usage: $(basename $0) [OPTIONS] arguments"
+  echo "OPTIONS:"
+  echo "  -f : specify makefile name"
+  echo "  -L : do not display output of make in less when complete"
+  echo "  -k : keep the output file from the make command"
+  echo " -- : remaining arguments will not be considered options"
+}
+
+NOLESS=0
+KEEP=0
+while getopts :f:Lkh opt
+do
+  case "$opt" in
+    f) MAKEFILE="-f $OPTARG" ;;
+    L) NOLESS=1 ;;
+    k) KEEP=1 ;;
+    -) break ;;
+    h) usage; exit ;;
+    :) echo "ERROR: Missing argument for '-$OPTARG'"; exit 22 ;;
+    *) echo "ERROR: Unknown option '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+# no pipe, just and not keeping the file, just run make
+[[ $NOLESS -ne 0 && $KEEP -eq 0 ]] && exec make $MAKEFILE $*
+
+# trapping output; create file
+OUTFILE=$(mktemp -p $HOME/tmp make.XXXXXXXXXXX)
+[[ $KEEP -eq 0 ]] && trap "rm ${OUTFILE}" EXIT
+
+# $? will be the result of the last command (tee, which succeeds)
+# pipefail returns the rightmost command to exit with non-zero status
+# (or 0 if all succeeded)
+# Alternately, bash can check ${PIPESTATUS[n]} for each cmd in the pipeline
+set -o pipefail
+make $MAKEFILE $* 2>&1 | tee ${OUTFILE}
+MAKERC=$?
+echo "MAKERC: $MAKERC"
+# [[ $MAKERC -ne 0 && $NOLESS -eq 0 ]] && less -RFX ${OUTFILE}
+if [[ $MAKERC -ne 0 && $NOLESS -eq 0 ]]; then
+  [[ -z $LINES ]] && LINES=$(tput lines)
+  [[ -z $COLUMNS ]] && COLUMNS=$(tput cols)
+  if [[ -z $COLUMNS ]]; then
+    OUTSZ=$(wc -l < ${OUTFILE})
+    #OUTSZ=$(wc -l ${OUTFILE} | cut -f1 -d' ')
+  else
+    OUTSZ=$(fold -w "$COLUMNS" ${OUTFILE} | wc -l)
+  fi
+  #[[ OUTSZ > $LINES ]] && clear
+  if [[ $((3+OUTSZ)) -ge $LINES ]]; then
+    clear
+    less -R ${OUTFILE}
+  fi
+fi
+exit $MAKERC
+
