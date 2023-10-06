@@ -39,9 +39,6 @@ shift
 SRCH=$1
 shift
 
-#echo "WHERE: ${WHERE}"
-#echo "SRCH:  ${SRCH}"
-
 # build the command line:
 CMD=()
 CMD+=(find)

@@ -1,8 +1,33 @@
 #!/bin/bash
 
+
+usage()
+{
+  local PGM=$(basename $0)
+  echo "Usage: [OPTS] <pattern>"
+  echo "where OPTS:"
+  echo "  -d dir  : specify directory to search (default current dir)"
+  echo "  -t type : specify the type of entry to seek (default f)"
+  echo "  -h      : this help text"
+}
+
 [[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
 
+WHERE=.
+TYPE=f
+while getopts :d:t:h opt
+do
+  case $opt in
+    d) WHERE=$OPTARG ;;
+    t) TYPE=$OPTARG ;;
+    h) usage; exit ;;
+    :) echo "Missing argument for '-$OPTARG'"; exit 22 ;;
+    *) echo "Invalid argument: '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
 while [[ $# -ne 0 ]]; do
-  find . -type f -name "$1"
+  find $WHERE -type $TYPE -name "$1"
   shift
 done

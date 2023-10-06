@@ -37,7 +37,7 @@ trap "rm ${TMPFILE}" EXIT
 MATCH=0
 DIFFER=0
 for FN in "${LIST[@]}"; do
-  git stash show "stash@{0}:$FN" <| $TMPFILE
+  git show "stash@{0}:$FN" >| $TMPFILE
   RC=$?
   [[ $RC -ne 0 ]] && { echo "Unable to get stashed file: $FN"; exit $RC; }
   # no need to display in GUI if the files match

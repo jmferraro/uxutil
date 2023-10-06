@@ -1,11 +1,46 @@
 #!/bin/bash
 
+usage()
+{
+  local PGM=$(basename $0)
+  echo "Usage: $PGM [OPTS] <char>"
+  echo "Where OPTS:"
+  echo "  -[0-9]+ : specify line count"
+  echo "  -/      : half the screen"
+  echo "  -h      : this help text"
+}
+
+CMDLINES=0
+unset HALF NUM
+while getopts :1234567890/h opt
+do
+  echo "opt: '$opt'"
+  case $opt in
+    [0-9]) NUM=1; CMDLINES=$((CMDLINES*10+opt)) ;;
+        /) HALF=1 ;;
+        h) usage; exit ;;
+    *) echo "ERROR: Unknown option: '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+echo "CMDLINES: $CMDLINES"
+
+# / and numbers mutally exclusive
+[[ -n $HALF && -n $NUM ]] && { echo "FATAL: count and half cannot be specified together"; exit 22; }
+
+# at most 1 argument (other than options)
+# if no arguments, default sep char is '-'
+# separator MUST be a single char
+[[ $# -gt 1 ]] && { echo "ERROR: Invalid command line"; exit 22; }
 [[ 0 -eq $# ]] && CHR='-' || CHR=$1
-[[ ${#CHR} -ne 1 ]] && { echo "Invalid sepatator: '$CHR'"; exit 22; }
+[[ ${#CHR} -ne 1 ]] && { echo "Invalid separator: '$CHR'"; exit 22; }
 
 # get the number of lines on the screen
-
 [[ -z $LINES ]] && LINES=$(tput lines)
+[[ -n $HALF ]] && CMDLINES=$((LINES/2))
+[[  $CMDLINES -gt 0 ]] && LINES=$CMDLINES
+
+# how many columns
 [[ -z $COLUMNS ]] && COLUMNS=$(tput cols)
 
 [[ -n $LINES ]] && NUM=$LINES || NUM=25

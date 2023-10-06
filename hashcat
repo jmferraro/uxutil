@@ -5,6 +5,7 @@ usage()
   echo "Usage: $(basename $0) [OPTIONS] <file>"
   echo "OPTIONS:"
   echo "  -c : cumulative sums"
+  echo "  -m : force use of md5sum )(instead of shasum)"
   echo "  -v : verbose"
   echo "  -w : ignore whitespace"
   echo "  -h : this help"
@@ -20,11 +21,13 @@ trim()
   echo -n "$var"
 }
 
-unset CUME VERBOSE TRIM
-while getopts :cvwh opt
+unset CUME VERBOSE TRIM FORCE5
+HASHCMD=shasum
+while getopts :cmvwh opt
 do
   case "$opt" in
     c) CUME=1 ;;
+    m) HASHCMD=md5sum ;;
     v) VERBOSE=1 ;;
     w) TRIM=1 ;;
     h) usage; exit ;;
@@ -34,9 +37,10 @@ done
 shift $((OPTIND-1))
 
 # if SHASUM is not available, use md5sum
-HASHCMD=shasum
-if ! type -f shasum &> /dev/null; then
-  HASHCMD=md5sum
+if [[ "shasum" == $HASHCMD ]]; then
+  if ! type -f shasum &> /dev/null; then
+    HASHCMD=md5sum
+  fi
 fi
 
 [[ 1 != $# ]] && { echo "ERROR: Invalid command line"; exit 22; }
@@ -55,6 +59,6 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
     lines="${lines}${line}"
     line=${lines}
   fi
-  echo "$fmtln: $(echo "$line" | shasum | cut -f1 -d' ')$tail"
+  echo "$fmtln: $(echo "$line" | $HASHCMD | cut -f1 -d' ')$tail"
 done < "$1"
 

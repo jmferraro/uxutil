@@ -3,25 +3,38 @@
 usage()
 {
   PGM=$(basename $0)
+  echo "Usage: $PGM [OPTS] <search> [file[s]]"
+  echo "Where OPTS:"
+  echo "  -c     : match c/cpp source files (default all or [files])"
+  echo "  -d dir : specify directory to search (default: .)"
+  echo "  -v     : verbose mode"
+  echo "  -h     : this help text"
 }
 
 PATS=()
 WHERE=.
-while getopts :cd:h opt
+unset VERBOSE
+while getopts :cd:vh opt
 do
   case "$opt" in
     c) PATS=(*.c *.cpp *.h) ;;
     d) WHERE=$OPTARG ;;
+    v) VERBOSE=1 ;;
     h) usage; exit ;;
     :) echo "Missing argument for '-$OPTARG'"; exit 22 ;;
-    *) echo "? Unknown argument: '-$OPTARG'"; exit 22 ;;
+    *) echo "Unknown argument: '-$OPTARG'"; exit 22 ;;
   esac
 done
 shift $((OPTIND-1))
 
 [[ $# -eq 0 ]] && { echo "Nothing specified"; exit 22; }
 
+if ! type -f rgrep > /dev/null 2>&1; then
+  echo "Unable to find required rgrep command"
+  exit 127
+fi
 
-set -x
+
+[[ -n $VERBOSE ]] && set -x
 exec rgrep $WHERE "$@" ${PATS[@]}
 
