@@ -4,20 +4,20 @@
 echo "Running pre-commit-hook..."
 
 RET=0
-FAIL_WORDS=()
+FAIL_WORDS=()                 # all words have been changed to REGEX
 FAIL_REGEX=()
 FAIL_REGEX+=("\bFIXME\b")     # items marked as FIXME should be fixed before being committed
-FAIL_REGEX=("\bNOCOMMIT\b")   # explicit DO NOT COMMIT flag
-FAIL_REGEX=("\bXXX\n")        # another flag to stop commits
+FAIL_REGEX+=("\bNOCOMMIT\b")  # explicit DO NOT COMMIT flag
+FAIL_REGEX+=("\bXXX\n")       # another flag to stop commits
 FAIL_REGEX+=("^<<<<<<<\s*$")  # merge conflict remnant
 FAIL_REGEX+=("^=======\s*$")  # merge conflict remnant
 FAIL_REGEX+=("^>>>>>>>\s*$")  # merge conflict remnant
-FAIL_WORDS+=("NULL")          # all NULL should now be nullptr
+FAIL_REGEX+=("\bNULL\b")      # all NULL should now be nullptr
 
 ROOT_PATH=$(git rev-parse --show-cdup)
 
 CACHED="--cached"
-[[ "--all" == "$1" ]] && CACHED=""
+[[ "--all" == "$1" ]] && unset CACHED
 
 # get a list of the files to be committed: exclude Deleted and Renamed
 FILES=($(git diff ${CACHED} --name-status | awk '/^[^DR]/ { print $2 }'))
@@ -71,6 +71,20 @@ fi
 # exit ith number of failures
 if [[ $RET -gt 0 ]]; then
   echo "pre-commit hook failed, failure count: $RET"
+  exit $RET
+fi
+
+# master/main restriction does not apply if .gitnorestrict is present in project root
+if [[ ! -e ${ROOT_PATH}/.gitnorestrict ]]; then
+  # should not be committing to the 'main' or 'master' branch
+  BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  unset RESTRICT
+  [[ 'master' == $BRANCH ]] && RESTRICT=1
+  [[ 'main' == $BRANCH ]] && RESTRICT=1
+  if [[ -n $RESTRICT && ${#FILES[@]} -ne 0 ]]; then
+    echo "Should not be committing to '$BRANCH' branch"
+    RET=$((RET+1))
+  fi
 fi
 
 exit $RET

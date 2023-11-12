@@ -36,5 +36,5 @@ fi
 
 
 [[ -n $VERBOSE ]] && set -x
-exec rgrep $WHERE "$@" ${PATS[@]}
+exec rgrep $WHERE "$@" "${PATS[@]}"
 

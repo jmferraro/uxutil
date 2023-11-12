@@ -62,5 +62,5 @@ fi
 CMD+=(-print0)
 
 set -x
-exec ${CMD[@]} | xargs -0 grep ${GREP_OPT[@]} $SRCH
+exec ${CMD[@]} | xargs -0 grep ${GREP_OPT[@]} "$SRCH"
 

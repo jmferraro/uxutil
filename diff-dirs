@@ -1,50 +1,122 @@
 #!/bin/bash
 
-LMISSING=0
-RMISSING=0
-SAME=0
-TOTAL=0
+# TODO: add recursion
 
-CMP_DIR=.   # MOD
+usage()
+{
+  PGM=$(basename $0)
+  echo "Usage: $PGM [OPTIONS] <dir1> <dir2>"
+  echo "Where OPTIONS:"
+  echo "  -p pgm : use PGM to display differences (default: $CMD)"
+  echo "  -v     : verbose mode"
+  echo "  -x     : extended output"
+  echo "  -h     : this help text"
+}
 
-[[ -z $CMP_DIR ]] && CMP_DIR=src
-CMD= echo $(basename $0 | sed 's/-dirs//')
- [[ "diff" == $CMD ]] && CMD=tkdiff
+run_diff()
+{
+  [[ -n ${VERBOSE} ]] && echo -n "File: $1"
+  LFILE=$DIR1/$1
+  RFILE=$DIR2/$1
 
- [[ "-v" == "$1" ]] && { VERBOSE=1; shift; }
+  I1=$(stat -c %i $LFILE)
+  I2=$(stat -c %i $RFILE)
 
- [[ $# -ne 2 ]] && { echo "Invalid command line"; exit 22; }
+  if [[ $I1 == $I2 ]]; then
+    [[ -n $VERBOSE ]] && echo " :> SAME INODE"
+    SAME=$((SAME+1))
+    return
+  fi
+  
+  if cmp -s $LFILE $RFILE; then
+    [[ -n $VERBOSE ]] && echo " :> IDENTICAL"
+    SAME=$((SAME+1))
+    return
+  fi
+  
+  [[ -n $VERBOSE ]] && echo " :> DIFFERS" 
+  [[ "cmp" == $CMD ]] && return
+  $CMD $LFILE $RFILE
+}
 
- run_diff()
- {
-   [[ -n ${VERBOSE} ]] && echo "File: $1"
-   TOTAL=$((TOTAL+1))
-   unset SKIP
-   LFILE=$1
-   RFILE=$2/$(basename $1)
-   [[ -r LFILE ]] && { echo "Left file missing: ${LFILE}"; SKIP=1; LMISSING=$((LMISSING+1)); }
-   [[ -r RFILE ]] && { echo "Right file missing: ${RFILE}"; SKIP=1; LMISSING=$((LMISSING+1)); }
-   [[ -n $SKIP ]] && return
+# --- main execution begins here ---
+# defaults
+CMD=cmp
+PGM=$(basename $0)
+if [[ $PGM =~ -dirs$ ]]; then
+  CMD=$(echo $PGM | sed 's/-dirs//')
+  [[ "diff" == $CMD ]] && CMD=tkdiff
+fi
 
-   cmp -s $LFILE $RFILE && { SAME=$((SAME+1)); return; }
-   [[-n $VERBOSE ]] && echo "> DIFFERS"
-   [[ "cmp" == $CMD ]] && return
-   $CMD $LFILE $RFILE
- }
+# parse the command line
+unset VERBOSE XOUTPUT
+while getopts :p:vxh OPT; do
+  case $OPT in
+    p) PGM=$OPTARG ;;
+    v) VERBOSE=1 ;;
+    x) XOUTPUT=1 ;;
+    h) usage; exit ;;
+    :) echo "ERROR: no argument specified for '-$OPTARG'"; exit 22 ;;
+    *) echo "Unknown option: '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
 
+[[ "cmp" == $CMD ]] && VERBOSE=1
+
+[[ 2 -ne $# ]] && { echo "Invalid command line"; exit 22; }
 DIR1=$1
 DIR2=$2
-[[ "$DIR1" == "$DIR2" ]] && { echo "directories are the same!"; exit 22; }
-[[ ! -d ${DIR1} || ! -d ${DIR1}/${CMP_DIR} ]] && { echo "$DIR1 invalid"; exit 22; }
-[[ ! -d ${DIR2} || ! -d ${DIR2}/${CMP_DIR} ]] && { echo "$DIR2 invalid"; exit 22; }
 
-# use '+' as sed delimiter since DIR may contain '/' characters
-for FN in $(find ${DIR1}/${CMP_DIR} -type f); do
-  [[ ! $FN =~ /\.git/ && ! FN =~ DOTTGIT\./ ]] && run_diff $FN $(dirname $FN | sed s+${DIR1}+${DIR2}+)/
+[[ ! -d $DIR1 ]] && { echo "ERROR: the specified directoey does not exist: $DIR1"; exit 2; }
+[[ ! -d $DIR2 ]] && { echo "ERROR: the specified directoey does not exist: $DIR2"; exit 2; }
+
+# get the differences
+RESULTS=$(comm  --output-delimiter='|'\
+  <(find $DIR1 -maxdepth 1 -type f -exec basename {} \; | sort)\
+  <(find $DIR2 -maxdepth 1 -type f -exec basename {} \; | sort))
+
+# classify the results
+LONLY=0
+RONLY=0
+TOTAL=0
+SAME=0
+BOTH=()
+for LN in ${RESULTS[@]}; do
+  if [[ "|" == ${LN:0:1} ]]; then
+    if [[ "|" == ${LN:1:1} ]]; then
+      BOTH+=(${LN:2})
+    else
+      RONLY=$((RONLY+1))
+    fi
+  else
+    LONLY=$((LONLY+1))
+  fi
+  TOTAL=$((TOTAL+1))
 done
 
-echo "Left files missing:  ${LMISSING}"
-echo "Right files missing: ${RMISSING}"
+# process files in both lists
+for FN in ${BOTH[@]}; do
+  run_diff $FN
+done
+
+BOTH_NUM=${#BOTH[@]}
+if [[ -n $XOUTPUT && $BOTH_NUM -gt 0 ]]; then
+  [[ -n $VERBOSE ]] && printf "\n"
+  printf "=%.0s" {1..80}; printf "\n"
+  echo "Files in both ($BOTH_NUM):"
+  for FN in ${BOTH[@]}; do
+    echo $FN
+  done
+  printf "=%.0s" {1..80}; printf "\n"
+fi
+
+# print summary
+
+[[ -n $VERBOSE || -n $XOUTPUT ]] && printf "\n"
+echo "Left files missing:  ${RONLY}"
+echo "Right files missing: ${LONLY}"
 echo "Identical files:     ${SAME}"
+echo "Differing files:     $((BOTH_NUM-SAME))"
 echo "Total files:         ${TOTAL}"
 

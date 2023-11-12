@@ -6,24 +6,26 @@ usage()
   echo "Usage: $PGM [OPTS] <char>"
   echo "Where OPTS:"
   echo "  -[0-9]+ : specify line count"
+  echo "  -C      : do NOT change dolors for output"
   echo "  -/      : half the screen"
   echo "  -h      : this help text"
 }
 
 CMDLINES=0
-unset HALF NUM
-while getopts :1234567890/h opt
-do
+unset HALF NUM NO_COLOR
+while getopts :1234567890C/h opt; do
   echo "opt: '$opt'"
   case $opt in
     [0-9]) NUM=1; CMDLINES=$((CMDLINES*10+opt)) ;;
+        C) NO_COLOR=1 ;;
         /) HALF=1 ;;
         h) usage; exit ;;
     *) echo "ERROR: Unknown option: '-$OPTARG'"; exit 22 ;;
   esac
 done
 shift $((OPTIND-1))
-echo "CMDLINES: $CMDLINES"
+#echo "CMDLINES: $CMDLINES"
+[[ -z $NO_COLOR ]] && echo -en "\e[1;37m"
 
 # / and numbers mutally exclusive
 [[ -n $HALF && -n $NUM ]] && { echo "FATAL: count and half cannot be specified together"; exit 22; }
@@ -47,10 +49,11 @@ echo "CMDLINES: $CMDLINES"
 while [[ 0 -ne $NUM ]]; do
   [[ -n $COLUMNS ]] && COLS=$COLUMNS || COLS=80
   while [[ 0 -ne $COLS ]]; do
-    echo -n ${CHR}
+    echo -n "${CHR}"  # quoting prevents expansion in echo command if wildcard
     COLS=$((COLS-1))
   done
   printf "\n"
   NUM=$((NUM-1))
 done
 
+[[ -z $NO_COLOR ]] && echo -en "\e[0m"

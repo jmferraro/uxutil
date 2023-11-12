@@ -1,13 +1,52 @@
 #!/bin/bash
 
+usage()
+{
+  PGM=$(basename $0)
+  echo "Usage: $PGM [OPTS] <file> <file|dir>"
+  echo "Where OPTS:"
+  echo "  -s : show differences"
+  echo "  -v : verbose"
+  echo "  -h : this help text"
+}
+
+QUIET=-q
+unset VERBOSE
+while getopts :svh OPT; do
+  case $OPT in
+    s) unset QUIET ;;
+    v) VERBOSE=1 ;;
+    h) usage; exit ;;
+    *) echo "ERROR: unknown argument '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
 [[ 2 -ne $# ]] && { echo "Invalid command line"; exit 22; }
 
-[[ -f $1 ]] || { echo "File does not exist: $1"; exit 2; }
-[[ -f $2 ]] || { echo "File does not exist: $2"; exit 2; }
+[[ -r $1 ]] || { echo "File does not exist: $1"; exit 2; }
+[[ -r $2 ]] || { echo "File/dir does not exist: $2"; exit 2; }
+F1=$1
+F2=$2
+[[ -d $1 ]] && { echo "File1 is a directory: $1"; exit 2; }
+# if F2 is a dir; append filename to it
+if [[ -d $2 ]]; then 
+  F2="${F2}/$(basename $1)"
+  [[ -r $F2 ]] || { echo "File dooes not exist: $F2"; exit 2; }
+  I1=$(stat -c %i $F1)
+  I2=$(stat -c %i $F2)
+fi
 
-diff -q $1 $2 2>/dev/null
+[[ $I1 -eq $I2 ]] && { echo "Files have the same inode"; exit; }
+
+diff $QUIET $F1 $F2 2>/dev/null
 RC=$?
-[[ 0 -eq $RC ]] && echo "Files are identical"
+if [[ 0 -eq $RC ]]; then
+  if [[ -n $VERBOSE ]]; then
+    echo "$F1 and $F2 are identical"
+  else
+    echo "Files are identical"
+  fi
 exit $RC
 
 
