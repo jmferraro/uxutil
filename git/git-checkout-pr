@@ -1,6 +1,5 @@
 #!/bin/bash
 
-OPT_FORCE=''
 OPT_REMOTE=origin
 
 usage()
@@ -10,41 +9,56 @@ usage()
   echo "  $arg0 [-f] [-v] [-r <remote>] <pull request number>"
   echo "Where:"
   echo "  -f        : force the checkout"
+  echo "  -l        : list PRs"
   echo "  -r remote : specify the name of the remotre repository (default: $OPT_REMOTE)"
   echo "  -v        : verbose mode"
 }
 
 fatal()
 {
-  echo "ERROR: $1"
-  usage
-  exit 1
+  local RED="\e[1;31m"
+  local NRM="\e0m"
+  echo -e "${RED}ERROR: $1${NRM}"
+  exit 22
 }
 
 # parse options
-while getopts :hfrv:\?- opt
-do
-  case "$opt" in
+unset OPT_FORCE VERBOSE OPT_LIST
+while getopts :flr:vh OPT; do
+  case $OPT in
     f) OPT_FORCE='-f' ;;
     r) OPT_REMOTE=$OPTARG ;;
     h) usage; exit ;;
     v) OPT_VERBOSE=1 ;;
-    :) fatal "option: '-$OPTARG' missing required argument" ;; 
-    \?) fatal "Unknown option: $opt" ;;
+    :) fatal "option: '-$OPTARG' missing required argument" ;;
+    *) fatal "Unknown option: '-$OPTARG'" ;;
   esac
 done
 shift $((OPTIND-1))
 
-# should only be 1 argument
+# should only be 1 argument (unless list, which should be 0)
+if [[ -n $OPT_LIST ]]; then
+  [[ $#  -ne 0 ]] && fatal "Invalid command line"
+  # get the list of pull requests from the remote: NOTE the default delimiter for cut is TAB
+  mapfile -t PRS < <(git ls-remote $OPT_REMOTE --refs main 'pull-requests/*from' | cut -f2 | cut -f3 -d'/' | sort -n)
+  [[ 0 -eq ${#PRS[@]} ]] && { echo "No pull requests found"; exit; }
+  echo "Pull Requests for remote $OPT_REMOTE:"
+  for NUM in ${PRS[@]}; do
+    echo $NUM
+  done
+  exit
+fi
+
+# not listing PRs, continue to checkout the PR
 [[ $# != 1 ]] && fatal "Incorrect command line"
 
 # verify argument is numeric
 [[ ! $1 =~ ^[0-9]+$ ]] && fatal "Invalid pull request number"
 
-# assuming all pull requests are into origin
+# check pull requests at remote: default is ORIGIN
 URL=$(git remote get-url ${OPT_REMOTE})
 RC=$?
-[[ 0 != $RC || -z $URL ]] && exit
+[[ 0 != $RC || -z $URL ]] && exit $RC
 
 # update the tags to get the pull request information
 git fetch --tags --progress $URL refs/pull-requests/*:refs/remotes/${OPT_REMOTE}/pull-requests/*
@@ -56,5 +70,4 @@ RC=$?
 [[ 1 == $VERBOSE ]] && echo "pulling commit id: $COMMIT_ID"
 
 exec git checkout $OPT_FORCE $COMMIT_ID
-
 

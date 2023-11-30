@@ -5,9 +5,9 @@ usage()
   echo "Usage: $(basename $0) [OPTIONS] <file>"
   echo "OPTIONS:"
   echo "  -c : cumulative sums"
-  echo "  -m : force use of md5sum )(instead of shasum)"
-  echo "  -v : verbose"
+  echo "  -m : force use of md5sum (instead of shasum)"
   echo "  -w : ignore whitespace"
+  echo "  -W : ignore whitespace and show contents w/o whitespace"
   echo "  -h : this help"
 }
 
@@ -21,15 +21,15 @@ trim()
   echo -n "$var"
 }
 
-unset CUME VERBOSE TRIM FORCE5
+unset CUME TRIM
 HASHCMD=shasum
-while getopts :cmvwh opt
+while getopts :cmvwWh opt
 do
   case "$opt" in
     c) CUME=1 ;;
     m) HASHCMD=md5sum ;;
-    v) VERBOSE=1 ;;
     w) TRIM=1 ;;
+    W) TRIM=1; SHOW_TRIM=1 ;;
     h) usage; exit ;;
     *) echo "ERROR: unknown option: '-$OPTARG'"; exit 22 ;;
   esac
@@ -45,20 +45,22 @@ fi
 
 [[ 1 != $# ]] && { echo "ERROR: Invalid command line"; exit 22; }
 
-lnum=0
-unset lines
-while IFS='' read -r line || [[ -n "$line" ]]; do
+LNUM=0
+unset LINES
+while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
   if [[ -n $TRIM ]]; then
-    line=$(trim $line)
+    ORIG=$LINE
+    LINE=$(trim $LINE)
+    [[ -n $SHOW_TRIM ]] && ORIG=$LINE
   fi
-  lnum=$((lnum+1))
-  fmtln=$(printf "%06d" $lnum)
-  [[ -n $VERBOSE ]] && tail=" : $line"
+  LNUM=$((LNUM+1))
+  fmtln=$(printf "%06d" $LNUM)
+  TAIL=" : $ORIG"
   if [[ -n $CUME ]]; then
-    if [[ -n $lines ]]; then lines="${lines}\n"; fi
-    lines="${lines}${line}"
-    line=${lines}
+    if [[ -n $LINES ]]; then LINES="${LINES}\n"; fi
+    LINES="${LINES}${LINE}"
+    LINE=${LINES}
   fi
-  echo "$fmtln: $(echo "$line" | $HASHCMD | cut -f1 -d' ')$tail"
+  echo "$fmtln: $(echo "$LINE" | $HASHCMD | cut -f1 -d' ')$TAIL"
 done < "$1"
 
