@@ -48,8 +48,8 @@ fi
 LNUM=0
 unset LINES
 while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
+  ORIG=$LINE
   if [[ -n $TRIM ]]; then
-    ORIG=$LINE
     LINE=$(trim $LINE)
     [[ -n $SHOW_TRIM ]] && ORIG=$LINE
   fi

@@ -10,7 +10,7 @@ usage()
   echo "Where:"
   echo "  -f        : force the checkout"
   echo "  -l        : list PRs"
-  echo "  -r remote : specify the name of the remotre repository (default: $OPT_REMOTE)"
+  echo "  -r remote : specify the name of the remote repository (default: $OPT_REMOTE)"
   echo "  -v        : verbose mode"
 }
 
@@ -23,10 +23,11 @@ fatal()
 }
 
 # parse options
-unset OPT_FORCE VERBOSE OPT_LIST
+unset OPT_FORCE OPT_VERBOSE OPT_LIST
 while getopts :flr:vh OPT; do
   case $OPT in
     f) OPT_FORCE='-f' ;;
+    l) OPT_LIST=1 ;;
     r) OPT_REMOTE=$OPTARG ;;
     h) usage; exit ;;
     v) OPT_VERBOSE=1 ;;
@@ -67,7 +68,7 @@ git fetch --tags --progress $URL refs/pull-requests/*:refs/remotes/${OPT_REMOTE}
 COMMIT_ID=$(git rev-parse refs/remotes/${OPT_REMOTE}/pull-requests/$1/from^{commit})
 RC=$?
 [[ 0 != $RC || -z $COMMIT_ID ]] && exit
-[[ 1 == $VERBOSE ]] && echo "pulling commit id: $COMMIT_ID"
+[[ 1 == $OPT_VERBOSE ]] && echo "pulling commit id: $COMMIT_ID"
 
 exec git checkout $OPT_FORCE $COMMIT_ID
 

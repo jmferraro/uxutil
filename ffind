@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 usage()
 {
   local PGM=$(basename $0)
@@ -11,15 +10,15 @@ usage()
   echo "  -h      : this help text"
 }
 
-[[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
-
 WHERE=.
 TYPE=f
+unset VERBOSE
 while getopts :d:t:h opt
 do
   case $opt in
     d) WHERE=$OPTARG ;;
     t) TYPE=$OPTARG ;;
+    v) VERBOSE=1 ;;
     h) usage; exit ;;
     :) echo "Missing argument for '-$OPTARG'"; exit 22 ;;
     *) echo "Invalid argument: '-$OPTARG'"; exit 22 ;;
@@ -27,7 +26,10 @@ do
 done
 shift $((OPTIND-1))
 
+[[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
+
 while [[ $# -ne 0 ]]; do
+  [[ -n $VERBOSE ]] && echo "Looking for name: $1, type: $TYPE"
   find $WHERE -type $TYPE -name "$1"
   shift
 done
