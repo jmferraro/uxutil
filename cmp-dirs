@@ -68,7 +68,7 @@ shift $((OPTIND-1))
 DIR1=$1
 DIR2=$2
 
-[[ ! -d $DIR1 ]] && { echo "ERROR: the specified directoey does not exist: $DIR1"; exit 2; }
+[[ ! -d $DIR1 ]] && { echo "ERROR: the specified directory does not exist: $DIR1"; exit 2; }
 [[ ! -d $DIR2 ]] && { echo "ERROR: the specified directoey does not exist: $DIR2"; exit 2; }
 
 # get the differences
