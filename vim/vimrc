@@ -1,8 +1,10 @@
-set nocompatible
+set dir=$HOME/tmp/vim                       " swap file location
+
 " source $HOME/.vim/allfold/allfold_basic.vim
 
+set nocompatible                            " make vim more useful
+
 " additional
-set dir=$HOME/tmp/vim
 set cmdheight=1
 set ttyfast
 set ruler " show row & col on statusbar
@@ -91,6 +93,9 @@ noremap <F1> <Esc>
 " folding
 vnoremap <F9> zf
 
+" next match
+inoremap <C-n> <C-o>n
+
 " override tabstops for other filetypes
 autocmd Filetype   ruby setlocal ts=2 sts=2 sw=2 et
 autocmd Filetype   yaml setlocal ts=2 sts=2 sw=2 et
@@ -101,6 +106,9 @@ autocmd Filetype   java setlocal ts=4 sts=4 sw=4 et
 autocmd Filetype      c setlocal ts=4 sts=4 sw=4 et
 autocmd Filetype    cpp setlocal ts=4 sts=4 sw=4 et
 autocmd Filetype python setlocal ts=4 sts=4 sw=4 et
+
+" automatically remove trailing whitespace
+autocmd BufWritePre * :%s/\s\+$//e
 
 " additional matching logic if vim >= 7.4
 if version >= 700

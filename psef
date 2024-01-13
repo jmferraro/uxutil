@@ -1,25 +1,40 @@
 #!/bin/bash
 
+usage()
+{
+  echo "Usage: $(basename $0) [-h] <arg1> [arg2..]"
+  echo "Where:"
+  echo "  -h : This help text"
+}
+
+while getopts h OPT; do
+  case OPT in
+    h) usage; exit ;;
+  esac
+done
+shift $((OPTIND-1))
+
+
 OPTS=-ef
 [[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/var/tmp
 
 if [[ $# == 0 ]]; then
   ps ${OPTS}
 else
-  PSEF=$(mktemp -p $TMPDIR psef.XXXXXXXXXXX)
-  trap "rm ${PSEF}" EXIT
-  ps ${OPTS} > ${PSEF}
+  TMPF=$(mktemp -p $TMPDIR psef.XXXXXXXXXXX)
+  trap "rm ${TMPF}" EXIT
+  ps ${OPTS} > ${TMPF}
   HEAD=0
   while [[ $# -gt 0 ]]; do
     TASKNAME=$1
     shift
-    DATA=$(fgrep ${TASKNAME} ${PSEF} | fgrep -v " $$ ")
+    DATA=$(fgrep ${TASKNAME} ${TMPF} | fgrep -v " $$ ")
     #while [[ $# -gt 0 ]]; do
     #  DATA=$(fgrep $1 $(echo "${DATA}"))
     #done
     if [[ ! -z "${DATA}" ]]; then
       if [[ HEAD -eq 0 ]]; then
-        head -1 ${PSEF}
+        head -1 ${TMPF}
         HEAD=1
       fi
       echo "${DATA}"

@@ -1,0 +1,48 @@
+#!/bin/bash
+
+usage()
+{
+  echo "Usage: [-a|h] $(basename $0) <file>"
+  echo "Where:"
+  echo "  -a : append to output file (default: overwrite)"
+  echo "  -h : this help text"
+}
+
+cleanTmp()
+{
+  [[ -r $1 ]] || exit  # nothing to clean
+  rm $1
+}
+
+unset OPT_A
+while getopts ah OPT; do
+  case $OPT in
+    a) OPT_A=1 ;;
+    h) usage; exit ;;
+  esac
+done
+shift $((OPTIND-1))
+
+[[ 0 -eq $# ]] && exec cat /dev/stdin
+[[ 1 -ne $# ]] && { echo "Invalid command line"; exit 22; }
+
+# look for tmp dir
+[[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/var/tmp
+
+# create ymp file
+TMPF=$(mktemp -p $TMPDIR sponge.XXXXXXXXXXX)
+
+# set trap to clean up
+trap "cleanTmp ${TMPF}" EXIT
+
+# capture the input
+cat < /dev/stdin > $TMPF
+
+# NOTE: cannot exec because trap will not run
+# create the output
+if [[ -n $OPT_A ]]; then
+  cat $TMPF >> $1
+else
+  mv $TMPF $1
+fi
+

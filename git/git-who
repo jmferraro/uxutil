@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# FIXME -- needs work -b1-17 isn't correct
-
 [[ $# -eq 0 ]] && { echo "Nothing to do"; exit 22; }
 
 ARGS=$#
 while [[ $# -ne 0 ]]; do
   [[ $ARGS -gt 1 ]] && echo "$1:"
-  git blame "$1" | cut -f2- -d'(' | cut -b1-17 | sort | uniq -c | sort -nr
+  git blame --line-porcelain $1 | sed -n 's/^author //p' | sort | uniq -c | sort -rn
   [[ $ARGS -gt 1 && $# -ne 1 ]] && { printf -- '-%.0s' {1..80}; printf '\n'; }
   shift
 done
+
 

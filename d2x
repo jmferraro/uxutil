@@ -1,0 +1,10 @@
+#!/bin/bash
+
+[[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
+
+while [[ 0 -ne $# ]]; do
+  echo -n $1
+  printf ": 0x%X\n" $1
+  shift
+done
+

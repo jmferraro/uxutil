@@ -19,22 +19,22 @@ run_diff()
   LFILE=$DIR1/$1
   RFILE=$DIR2/$1
 
-  I1=$(stat -c %i $LFILE)
-  I2=$(stat -c %i $RFILE)
+  I1=$(stat -c "%d-%i" $LFILE)
+  I2=$(stat -c "%d-%i" $RFILE)
 
   if [[ $I1 == $I2 ]]; then
-    [[ -n $VERBOSE ]] && echo " :> SAME INODE"
+    [[ -n $VERBOSE ]] && echo " :> SAME DEVICE/INODE"
     SAME=$((SAME+1))
     return
   fi
-  
+
   if cmp -s $LFILE $RFILE; then
     [[ -n $VERBOSE ]] && echo " :> IDENTICAL"
     SAME=$((SAME+1))
     return
   fi
-  
-  [[ -n $VERBOSE ]] && echo " :> DIFFERS" 
+
+  [[ -n $VERBOSE ]] && echo " :> DIFFERS"
   [[ "cmp" == $CMD ]] && return
   $CMD $LFILE $RFILE
 }

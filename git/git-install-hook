@@ -1,20 +1,33 @@
 #!/bin/bash
 
+# get directory for script, look for hooks sub-dir, look for pre-commit script
+THIS_DIR=$(dirname $BASH_SOURCE[0])
+HOOK_DIR=${THIS_DIR}/hooks
+[[ ! -d $HOOK_DIR ]] && { echo "HOOK_DIR: ${HOOK_DIR} does not exist"; exit 2; }
+
+# SRC_BIN should be in hooks dir under dir with this script
+SRC_BIN=${HOOK_DIR}/pre-commit
+[[ -e $SRC_BIN ]] && SRC_BIN=$(realpath $SRC_BIN)
+[[ ! -e $SRC_BIN ]] && { echo "${SRC_BIN} does not exist"; exit 2; }
+[[ ! -r $SRC_BIN ]] && { echo "${SRC_BIN} is not readable"; exit 2; }
+[[ ! -x $SRC_BIN ]] && { echo "${SRC_BIN} is not executable"; exit 2; }
+
 # set up destination
 ROOT_PATH=$(git rev-parse --show-cdup)
 RC=$?
 [[ 0 -ne $RC ]] && exit $RC
+
+# look for destination
 [[ -z $ROOT_PATH ]] && ROOT_PATH=$(pwd)   # in case current dir is .git dir
-DEST_BIN=${ROOT_PATH}/.git/hooks/pre-commit
+DEST_DIR=${ROOT_PATH}/.git/hooks
+[[ ! -d $DEST_DIR ]] && { echo "Unable to find destination hook directory: ${DEST_DIR}"; exit 2; }
+DEST_BIN=${DEST_DIR}/pre-commit
 
-# set up source
-SRC_BIN=${HOME}/githooks/pre-commit
-[[ -r ${SRC_BIN} ]] || { echo "cannot find hook to install"; exit 2; }
-
+# source and dest set; copy/link the script
 if [[ -e $DEST_BIN ]]; then
   if [[ -L $DEST_BIN ]]; then # it's a symbolic link
     LINK=(readlink ${DEST_BIN})
-    [[ -z ${INK} ]] && { echo "FATAL error: unable to readlink ${DEST_BIN}"; exit 5; }
+    [[ -z ${LINK} ]] && { echo "FATAL error: unable to readlink ${DEST_BIN}"; exit 5; }
     if [[ ${LINK} != ${SRC_BIN} ]]; then
       echo "Replacing existing symlink"
       ln -fs ${SRC_BIN} ${DEST_BIN}
@@ -27,8 +40,14 @@ if [[ -e $DEST_BIN ]]; then
     ln -fs ${SRC_BIN} ${DEST_BIN}
   fi
 else
-  # new file
-  echo "Installing pre-commit hook"
-  ln -s ${SRC_BIN} ${DEST_BIN}
+  # doesn't exist or link is bad
+  unset OPT_F
+  if [[ -L $DEST_BIN ]]; then
+    echo "Replacing bad pre-commit symlink"
+    OPT_F=-f
+  else
+    echo "Installing new pre-commit hook"
+  fi
+  ln -s $OPT_F ${SRC_BIN} ${DEST_BIN}
 fi
 

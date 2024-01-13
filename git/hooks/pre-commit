@@ -15,6 +15,7 @@ FAIL_REGEX+=("^>>>>>>>\s*$")  # merge conflict remnant
 FAIL_REGEX+=("\bNULL\b")      # all NULL should now be nullptr
 
 ROOT_PATH=$(git rev-parse --show-cdup)
+[[ -z ${ROOT_PATH} ]] && ROOT_PATH=./
 
 CACHED="--cached"
 [[ "--all" == "$1" ]] && unset CACHED
@@ -76,14 +77,28 @@ fi
 
 # master/main restriction does not apply if .gitnorestrict is present in project root
 if [[ ! -e ${ROOT_PATH}/.gitnorestrict ]]; then
+  # get the name of the default branch from the remote repo
+
+  BRNAM=$(git remote show origin | grep 'HEAD' | cut -d':' -f2 | sed -e 's/^ *//g' -e 's/ *$//g' > 2>/dev/null)
+  RC=$?
+
   # should not be committing to the 'main' or 'master' branch
   BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  RC=$((RC+$?))
   unset RESTRICT
-  [[ 'master' == $BRANCH ]] && RESTRICT=1
-  [[ 'main' == $BRANCH ]] && RESTRICT=1
-  if [[ -n $RESTRICT && ${#FILES[@]} -ne 0 ]]; then
-    echo "Should not be committing to '$BRANCH' branch"
-    RET=$((RET+1))
+  if [[ 0 -eq $RC && -n $BRANCH ]]; then
+    if [[ -n $BRNAM ]]; then
+      # use remote name
+      [[ $BRNAM == $BRANCH ]] && RESTRICT=1
+    else # try usual 'main' branch names
+      [[ 'master' == $BRANCH ]] && RESTRICT=1
+      [[ 'main' == $BRANCH ]] && RESTRICT=1
+    fi
+
+    if [[ -n $RESTRICT && ${#FILES[@]} -ne 0 ]]; then
+      echo "Should not be committing to '$BRANCH' branch"
+      RET=$((RET+1))
+    fi
   fi
 fi
 

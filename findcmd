@@ -2,7 +2,10 @@
 
 matchit()
 {
-  [[ $(basename $1 | grep -i "$2") ]] && echo $1
+  local POSMAT
+  unset PSMAT
+  [[ $(basename $1 | grep -i "$2") ]] && POSMAT=$1
+  [[ -x $POSMAT ]] && echo $POSMAT
 }
 
 if [[ 1 != $# ]]; then

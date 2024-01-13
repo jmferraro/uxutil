@@ -3,14 +3,14 @@
 usage()
 {
   PGM=$(basename $0)
-  echo "Usage: $PGM [-l] [-f|-e] [-h] <path> <pattern> [filepat]..."
+  echo "Usage: $PGM [-i] [-l] [-f|-e] [-n|v] [-h] <path> <pattern> [filepat]..."
   echo "WHERE:"
   echo " -e : pattern is an extended regular expression (ERE)"
   echo " -f : pattern is an fixed string"
   echo " -i : Ignore case"
   echo " -l : print only names of files containing matches "
-  echo " -n : print line number with output 1 ines "
-  echo " -v : invert match; select non-matching I ines "
+  echo " -n : print 1-based line number with each output line"
+  echo " -v : invert match; select non-matching lines "
   echo " -h : this help text"
 }
 
