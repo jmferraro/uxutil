@@ -5,7 +5,7 @@ usage()
   PGM=$(basename $0)
   echo "Usage: $PGM [OPTS] <file> <file|dir>"
   echo "Where OPTS:"
-  echo "  -v : verbose: show differences"
+  echo "  -v : verbose; show differences"
   echo "  -h : this help text"
 }
 

@@ -3,7 +3,7 @@
 matchit()
 {
   local POSMAT
-  unset PSMAT
+  unset POSMAT
   [[ $(basename $1 | grep -i "$2") ]] && POSMAT=$1
   [[ -x $POSMAT ]] && echo $POSMAT
 }
