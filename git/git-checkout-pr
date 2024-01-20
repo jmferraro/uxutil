@@ -39,7 +39,7 @@ shift $((OPTIND-1))
 
 # should only be 1 argument (unless list, which should be 0)
 if [[ -n $OPT_LIST ]]; then
-  [[ $#  -ne 0 ]] && fatal "Invalid command line"
+  [[ $# -ne 0 ]] && fatal "Invalid command line"
   # get the list of pull requests from the remote: NOTE the default delimiter for cut is TAB
   mapfile -t PRS < <(git ls-remote $OPT_REMOTE --refs main 'pull-requests/*from' | cut -f2 | cut -f3 -d'/' | sort -n)
   [[ 0 -eq ${#PRS[@]} ]] && { echo "No pull requests found"; exit; }

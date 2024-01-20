@@ -44,7 +44,7 @@ $ ln foo1 fu
 $ echo bar > bar
 
 $ diff foo1 foo2
-$ filediff -v foo1 foo2
+$ filediff foo1 foo2
 foo1 and foo2 are identical
 
 $ diff foo1 fu
@@ -61,7 +61,7 @@ $ filediff -v foo bar
 ```
 ### findcmd
 *findcmd string*
-Search the PATH for an executable file matching containing the specified string
+Search the PATH for an executable file, the name of which contains the specified string
 
 ### greplist
 *greplist* \<string\> \<filelist(s)\>*
@@ -76,6 +76,17 @@ specifying *-w* will cause the hash computation to ignore all leading and traili
 specifying *-W* will have produce the same hash computation but the whitespace will also be stripped from the output of the file
 By default *hashcat* will use *shasum* to compute the hashes.  If it cannot be found, it will use *md5sum*.
 The use of *md5sum* can be forced by specifying the *-m* command line option.
+
+### i2time
+*i2time \[-u\] \<time[.fract|s|m|u|n] ...\>\]*
+Convert the specified epoch times to human readable times.
+If neither a fractional part of the time nor one of the s, m, u, n unit specifiers is present, it
+will attempt to heuristically determine the units of the provided time.
+If the *-u* parameter is specified, the output will be in UTC rather than local time.
+
+### indir
+*indir \<DIR\> \<cmd \<args\>\>*
+Temporarily chdir to the specified *DIR* and execute the *cmd*, passing any specified *args* to it
 
 ### jmake
 Run make on the using the specified parameters.

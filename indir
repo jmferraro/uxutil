@@ -1,0 +1,12 @@
+#!/bin/bash
+
+[[ $# -lt 2 ]] && { echo "Invalid command line"; exit 22; }
+
+CMD_DIR=$1
+[[ ! -d $CMD_DIR ]] && { echo "Directory not found: $CMD_DIR"; exit 2; }
+cd $CMD_DIR
+export PATH=$PATH::
+shift
+
+exec "$@"
+

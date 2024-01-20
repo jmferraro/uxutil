@@ -79,7 +79,7 @@ fi
 if [[ ! -e ${ROOT_PATH}/.gitnorestrict ]]; then
   # get the name of the default branch from the remote repo
 
-  BRNAM=$(git remote show origin | grep 'HEAD' | cut -d':' -f2 | sed -e 's/^ *//g' -e 's/ *$//g' > 2>/dev/null)
+  BRNAM=$(git remote show origin | grep 'HEAD' | cut -d':' -f2 | sed -e 's/^ *//g' -e 's/ *$//g' 2>/dev/null)
   RC=$?
 
   # should not be committing to the 'main' or 'master' branch

@@ -1,0 +1,86 @@
+#!/bin/bash
+
+
+usage()
+{
+  echo "Usage: $(basename $0) [OPTS] <time[.fract|s|m|u|n]..."
+  echo "Where OPTS:"
+  echo "  -U : print time in UTC"
+  echo "  -h : this help text"
+  echo ""
+  echo "NOTE: The specified time(s) can optionally end in one of: s, m, u, n"
+  echo "      to specify the resolution of the provided timestamp"
+}
+
+printTime()
+{
+  local VAL=$1
+  local FRACT=0
+
+  # determine the resolution of the time
+  local DOT=0
+  if [[ $VAL == *.* ]]; then
+    DOT=1
+    FRACT=${VAL#*.}  # from the last match
+    VAL=${VAL%.*}    # to the last match
+  fi
+  readonly DOT
+
+  local UNITS=0
+  local -r LAST=${1: -1}  # need the space
+  case $LAST in
+    s) UNITS=1 ;;
+    m) UNITS=1000 ;;
+    u) UNITS=1000000 ;;
+    n) UNITS=1000000000 ;;
+  esac
+  readonly UNITS
+
+  [[ $UNITS -ne 0 && $DOT -ne 0 ]] && { echo "ERROR: Invalid time: '$1'"; exit 22; }
+
+  if [[ $UNITS -ne 0 ]]; then
+    VAL=${VAL:0:-1}
+    #echo "\$1:   $1"
+    #echo "\$VAL: $VAL"
+    FRACT=$((VAL % $UNITS))
+    VAL=$((VAL / $UNITS))
+  elif [[ $DOT -eq 0 ]]; then
+    # UNITS not set, attempt to calculate units from size of input
+    local -r LEN=${#VAL}
+    if [[ $LEN -gt 10 ]]; then
+      FRACT=${VAL:10}
+      VAL=${VAL:0:10}
+    fi
+  fi
+  readonly VAL
+  readonly FRACT
+
+  #echo ">>> DOT:   $DOT"
+  #echo ">>> VAL:   $VAL"
+  #echo ">>> UNITS: $UNITS"
+  #echo ">>> FRACT: $FRACT"
+
+  local -r STAMP=$(date $UTC -d "@$VAL" "+%Y-%m-%d %H:%M:%S")
+  local -r ZONE=$(date $UTC "+%Z [%z]")
+
+  echo -n $STAMP
+  [[ $FRACT -gt 0 ]] && echo -n ".${FRACT}"
+  echo " ${ZONE}"
+}
+
+unset UTC
+while getopts uh OPT; do
+  case $OPT in
+    u) UTC=--utc ;;
+    h) usage; exit ;;
+  esac
+done
+shift $((OPTIND-1))
+
+[[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
+
+while [[ $# -ne 0 ]]; do
+  printTime $1
+  shift
+done
+
