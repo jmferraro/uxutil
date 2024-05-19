@@ -5,6 +5,7 @@ usage()
   local PGM=$(basename $0)
   echo "Usage: [OPTS] <pattern>"
   echo "where OPTS:"
+  echo "  -I      : do *NOT* exclude 'install' dirs"
   echo "  -d dir  : specify directory to search (default current dir)"
   echo "  -t type : specify the type of entry to seek (default f)"
   echo "  -h      : this help text"
@@ -12,10 +13,12 @@ usage()
 
 WHERE=.
 TYPE=f
+NO_INC=1
 unset VERBOSE
-while getopts :d:t:h opt
+while getopts :Id:t:h opt
 do
   case $opt in
+    I) unset NO_INC ;;
     d) WHERE=$OPTARG ;;
     t) TYPE=$OPTARG ;;
     v) VERBOSE=1 ;;
@@ -30,6 +33,11 @@ shift $((OPTIND-1))
 
 while [[ $# -ne 0 ]]; do
   [[ -n $VERBOSE ]] && echo "Looking for name: $1, type: $TYPE"
-  find $WHERE -type $TYPE -name "$1"
+  if [[ -n $NO_INC ]]; then
+    find $WHERE -type $TYPE -name "$1" | fgrep -v /install/
+  else
+    find $WHERE -type $TYPE -name "$1"
+  fi
   shift
 done
+

@@ -1,0 +1,50 @@
+#!/bin/bash
+
+PGM=$(basename $0)
+
+usage()
+{
+  echo "Usage: $(PGM) [-h] <file>"
+  echo "Where:"
+  echo "  -h : This help text"
+  echo "If file name is specified, the file will not be deleted"
+}
+
+while getopts h OPT; do
+  case OPT in
+    h) usage; exit ;;
+    *) exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+[[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/var/tmp
+
+case $# in
+  0)
+    OUTF=$(mktemp -p $TMPDIR ${PGM}.XXXXXXXXXXX)
+    trap "rm ${OUTF}" EXIT
+    ;;
+  1)
+    OUTF=$1
+    ;;
+  *)
+    echo "Invalid commnd line"
+    exit 22
+    ;;
+esac
+
+tee $OUTF
+RC=$?
+[[ -z $LINES ]] && LINES=$(tput lines)
+[[ -z $COLUMNS ]] && COLUMNS=$(tput cols)
+if [[ -z $COLUMNS ]]; then
+  OUTSZ=$(wc -l < ${OUTF})
+else
+  OUTSZ=$(fold -w "$COLUMNS" ${OUTF} | wc -l)
+fi
+if [[ $((3+OUTSZ)) -ge $LINES ]]; then
+  clear
+  less -R ${OUTF}
+fi
+exit $RC

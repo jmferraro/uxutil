@@ -2,7 +2,7 @@
 
 ROOT_PATH=$(git rev-parse --show-cdup)
 [[ 0 -ne $? ]] && exit
-[[ -z $ROT_PATH ]] && ROOT_PATH=.
+[[ -z $ROOT_PATH ]] && ROOT_PATH=.
 HOOK_BIN=${ROOT_PATH}/.git/hooks/pre-commit
 
 [[ ! -x ${HOOK_BIN} ]] && exit
