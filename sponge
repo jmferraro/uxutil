@@ -29,7 +29,7 @@ shift $((OPTIND-1))
 # look for tmp dir
 [[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/var/tmp
 
-# create ymp file
+# create tmp file
 TMPF=$(mktemp -p $TMPDIR sponge.XXXXXXXXXXX)
 
 # set trap to clean up

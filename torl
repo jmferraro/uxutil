@@ -34,7 +34,7 @@ case $# in
     ;;
 esac
 
-tee $OUTF
+tee < /dev/stdin $OUTF
 RC=$?
 [[ -z $LINES ]] && LINES=$(tput lines)
 [[ -z $COLUMNS ]] && COLUMNS=$(tput cols)
