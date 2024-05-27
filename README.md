@@ -178,9 +178,10 @@ If *-c* is specified, search only *cpp*, *c*, and *h* files
 if -d* is specified , use the specified directory as the starting point for the search
 
 ### torl
-*torl \[filename\]
-<br>read from standard input and write to standard output and files (like *tee*).  After execution, if the output is larger than the screen size, it will display the output in less.
-If no file is specified, the command will create a temporary file to capture (and display) the output.  If created, the temporary file will be deleted once the command completes
+*torl \[filename\]*
+<br>Read from standard input and write to standard output and files (like *tee*).  After execution, if the output is larger than the screen size, it will display the output in less.
+If no file is specified, the command will create a temporary file to capture (and display) the output.  If created, the temporary file will be deleted once the command completes.
+<br>(The name comes from: 'Tee OR Less')
 
 ### vimln
 Given an input of source:line or source:line:column, will start vim and position the cursor at the specified location.
