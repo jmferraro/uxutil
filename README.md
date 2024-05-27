@@ -106,8 +106,21 @@ If the *-u* parameter is specified, the output will be in UTC rather than local 
 <br>Temporarily chdir to the specified *DIR* and execute the *cmd*, passing any specified *args* to it
 
 ### jmake
-Run make on the using the specified parameters.
-<br>If the make command fails and the output of make will take more than a single screen of output, the results will be displayed in *less*.
+*jmake \[options\] \[arguments\]
+<br>Run make on the using the specified parameters.
+If the make command fails and the output of make will take more than a single screen of output, the results will be displayed in *less*.
+```
+$ jmake -h
+Usage: jmake [OPTIONS] arguments
+OPTIONS:
+  -f : specify makefile name
+  -L : do not display output of make in less when complete
+  -k : keep the output file from the make command
+  -- : remaining arguments will not be considered options
+```
+NOTE: This command is superceded by the use of *torl*.  Instead of running `jmake`, simply run `make | torl`.
+There are more characters to type but using *torl* is more flexible since it can work with any build system. not just *make*
+(e.g. *ninja* -- `ninja | torl`)
 
 ### notes
 *notes \[-e|E\] \<string\>*
@@ -146,7 +159,7 @@ Specifying the *-C* parameter prevents *sep* from changing the color of the outp
 A different output character can be specified on the command line.
 
 ### sponge
-*sponge \[-a\] [\file\]*
+*sponge \[-a\] \[file\]*
 <br>Implemented in bash, like the linux *sponge* command available in either *coreutils* or *moreutils* depending on the distribution.
 If *-a* is specified, the output will be appended to the specified file instead of overwriting it.
 For example, to convert an entire file to uppercase:
