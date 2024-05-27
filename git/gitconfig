@@ -6,13 +6,14 @@
    meld = mergetool
    pull-up = "!f() { git remote update && git pull; }; f"
    st = "status"
+   stu = "status -uno"
    dt = "difftool"
    stcached = "diff --name-only --cached"
    lol=log --decorate --pretty=oneline --abbrev-commit
    lola=log --graph --decorate --pretty=oneline --abbrev-commit --all
 
 [user]
-	name = Joe Ferraro
+   name = Joe Ferraro
    email = joe@ironsmithventures.com
 
 [diff]
@@ -27,4 +28,4 @@
 [core]
    compression = 1
 [init]
-	defaultBranch = master
+   defaultBranch = master
