@@ -64,7 +64,7 @@ printTime()
   local -r ZONE=$(date $UTC "+%Z [%z]")
 
   echo -n $STAMP
-  [[ $FRACT -gt 0 ]] && echo -n ".${FRACT}"
+  [[ $FRACT -gt 0 ]] && printf ".%09u" ${FRACT}
   echo " ${ZONE}"
 }
 
