@@ -106,7 +106,7 @@ If the *-u* parameter is specified, the output will be in UTC rather than local 
 <br>Temporarily chdir to the specified *DIR* and execute the *cmd*, passing any specified *args* to it
 
 ### jmake
-*jmake \[options\] \[arguments\]
+*jmake \[options\] \[arguments\]*
 <br>Run make on the using the specified parameters.
 If the make command fails and the output of make will take more than a single screen of output, the results will be displayed in *less*.
 ```
