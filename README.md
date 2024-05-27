@@ -7,7 +7,7 @@ Some of these are grouped by the sub-directory for the group of functions they p
 ## Utilities:
 
 ### d2x
-*d2x \<num1\> \[num2\]...*
+*d2x \<num1\> \[num2\] ...*
 <br>Takes a list of input decimal values and converts to hexadecimal (opposite of *x2d*)
 
 ### cmp-dirs
@@ -95,7 +95,7 @@ By default *hashcat* will use *shasum* to compute the hashes.  If it cannot be f
 The use of *md5sum* can be forced by specifying the *-m* command line option.
 
 ### i2time
-*i2time \[-u\] \<time[.fract|s|m|u|n] ...\>\*
+*i2time \[-u\] \<time[.fract|s|m|u|n] ...\>*
 <br>Convert the specified epoch times to human readable times.
 If neither a fractional part of the time nor one of the *s*, *m*, *u*, *n* unit specifiers is present, it
 will attempt to heuristically determine the units of the provided time.
@@ -120,10 +120,10 @@ If specified with the option '*-e* option, the matching note will be displayed i
 Specifying *-E* will only show the file in the editor if it already exists.
 
 ### psef
-<br>Run the *ps* command searching the output for the specified argument(s) (ignoring the *psef* command itself, preserving the header line from the output)
+Run the *ps* command searching the output for the specified argument(s) (ignoring the *psef* command itself, preserving the header line from the output)
 
 ### rgrep
-<br>Perform a recursive grep (fgrep, grep, or egrep) starting with the specified location using the specified options.
+Perform a recursive grep (fgrep, grep, or egrep) starting with the specified location using the specified options.
 ```
 $ rgrep -h
 Usage: rgrep [-i] [-l] [-f|-e] [-n|v] [-h] <path> <pattern> [filepat]...
