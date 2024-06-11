@@ -6,12 +6,15 @@ usage()
 {
   echo "Usage: $(PGM) [-h] <file>"
   echo "Where:"
+  echo "  -A : always display in less (even on success)"
   echo "  -h : This help text"
   echo "If file name is specified, the file will not be deleted"
 }
 
-while getopts h OPT; do
-  case OPT in
+unset OPT_A
+while getopts Ah OPT; do
+  case $OPT in
+    A) OPT_A=1 ;;
     h) usage; exit ;;
     *) exit 22 ;;
   esac
@@ -29,22 +32,24 @@ case $# in
     OUTF=$1
     ;;
   *)
-    echo "Invalid commnd line"
+    echo "Invalid command line"
     exit 22
     ;;
 esac
 
 tee < /dev/stdin $OUTF
 RC=$?
-[[ -z $LINES ]] && LINES=$(tput lines)
-[[ -z $COLUMNS ]] && COLUMNS=$(tput cols)
-if [[ -z $COLUMNS ]]; then
-  OUTSZ=$(wc -l < ${OUTF})
-else
-  OUTSZ=$(fold -w "$COLUMNS" ${OUTF} | wc -l)
-fi
-if [[ $((3+OUTSZ)) -ge $LINES ]]; then
-  clear
-  less -R ${OUTF}
+if [[ 0 -ne $RC || -n $OPT_A ]]; then
+  [[ -z $LINES ]] && LINES=$(tput lines)
+  [[ -z $COLUMNS ]] && COLUMNS=$(tput cols)
+  if [[ -z $COLUMNS ]]; then
+    OUTSZ=$(wc -l < ${OUTF})
+  else
+    OUTSZ=$(fold -w "$COLUMNS" ${OUTF} | wc -l)
+  fi
+  if [[ $((3+OUTSZ)) -ge $LINES ]]; then
+    clear
+    less -R ${OUTF}
+  fi
 fi
 exit $RC
