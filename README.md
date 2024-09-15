@@ -177,6 +177,15 @@ If *file(s)* are specified, search only those files matching the files/globs spe
 If *-c* is specified, search only *cpp*, *c*, and *h* files
 if -d* is specified , use the specified directory as the starting point for the search
 
+### timestamp
+*timestamp \-h\] \[-n\] \[-q\] \[-c\] \[-k\] \[-s\] \[file(s)\]*
+<br>General tmestamp utility.
+Run by itself, it will print the current timestamp (optionally with nanonsecond precision if *-n* is specified.
+Using the *-q* option alow with one or more files will report the last modified time of each file.
+The utility can also be used to mark the file with a timestamp.  The default behavior is to use the modifification time of the file.
+Specifying *-c* will override this behavior, using the current timestamp instead.
+if file(s) will be renamed to append the timestamp unless the *-k* option is specified, which will result in creating a copy of the file instead.
+
 ### torl
 *torl \[filename\]*
 <br>Read from standard input and write to standard output and files (like *tee*).  After execution, if the output is larger than the screen size, it will display the output in less.

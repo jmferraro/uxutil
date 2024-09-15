@@ -1,0 +1,93 @@
+#!/bin/bash
+
+usage()
+{
+  echo "Usage: $(basename $0) [OPTS] [filename(s)]"
+  echo "Where OPTS:"
+  echo "  -c : use the current time when stamping files (requires -s)"
+  echo "  -k : keep the current file after stamping (copy)"
+  echo "  -n : extend time to nanoseconds"
+  echo "  -q : query time of specified file(s)"
+  echo "  -s : stamp the specified file(s) with its timestamp (or current if -c)"
+  echo "  -h : this help text"
+}
+
+unset OPT_C OPT_K OPT_N OPT_N OPT_Q OPT_S
+while getopts cnqksh OPT; do
+  case $OPT in
+    c) OPT_C=1 ;;
+    k) OPT_K=1 ;;
+    n) OPT_N=1 ;;
+    q) OPT_Q=1 ;;
+    s) OPT_S=1 ;;
+    *) exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+# options c, k, q, s require a file
+if [[ $# -eq 0 ]]; then
+  unset ERR
+  [[ -n $OPT_C ]] && ERR=c
+  [[ -n $OPT_K ]] && ERR=k
+  [[ -n $OPT_S ]] && ERR=s
+  [[ -n $ERR ]] && { echo "ERROR: option -$ERR requires at least one file"; exit 22; }
+fi
+
+# options c, k requires option s
+if [[ -z $OPT_S ]]; then
+  unset ERR
+  [[ -n $OPT_C ]] && ERR=c
+  [[ -n $OPT_K ]] && ERR=k
+  [[ -n $ERR ]] && { echo "ERROR: option -$ERR requires -s"; exit 22; }
+fi
+
+# -q excludes -s
+[[ $OPT_Q && $OPT_S ]] && { echo "ERROR: -q excludes -s"; exit 22; }
+
+# files(s) specified w/o file oriented options?
+if [[ 0 -ne $# && 0 -eq $((OPT_C+OPT_K+OPT_Q+OPT_S)) ]]; then
+  echo "File(s) specified with out any of options: -c, -k, -q, -s"
+  exit 22
+fi
+
+DATE_STR="+%Y%m%d-%H%M%S"
+[[ $OPT_N ]] && DATE_STR=${DATE_STR}.%N
+NOW=$(date ${DATE_STR})
+
+[[ 0 -eq $# ]] && { echo $NOW; exit 0; }
+
+
+# remaining code is file-based
+RC=0
+while [[ $# -ne 0 ]]; do
+  if [[ ! -r $1 ]]; then
+    echo "File does not exist: $1";
+    RC=2;
+    shift;
+    continue
+  fi
+
+  # stat format %Y doesn't give nanoseconds: use & parse output from %y (human readable)
+  FTIME=$(stat --format=%y $1 | cut -f1-2 -d' ' | sed 's/[-:]//g' | sed 's/ /-/g')
+  [[ -z $OPT_N ]] && FTIME=${FTIME%.*} # strip nanos
+  if [[ -n $OPT_Q ]]; then
+    echo "$FTIME : $1"
+  elif [[ -n $OPT_S ]]; then
+    [[ $OPT_C ]] && NEWN=$1.$NOW || NEWN=$1.$FTIME
+    [[ $OPT_K ]] && CMD="cp -p" || CMD=mv
+    # cp|mv -n fails silently
+    if [[ -r $NEWN ]]; then
+      echo "Destination exists: $NEWN"
+      RET=17
+    else
+      $CMD $1 $NEWN
+      RET=$?
+    fi
+    [[ 0 -ne $RET && $RC -eq 0 ]] && RC=$RET
+  fi
+  shift
+done
+
+exit $RC
+
