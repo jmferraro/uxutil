@@ -42,7 +42,7 @@ done
 [[ -n $VERBOSE ]] && echo "git branch --track ${BRANCH} ${REMOTE}/${BRANCH}"
 git branch --track ${BRANCH} ${REMOTE}/${BRANCH}
 RC=$?
-[[ 0 -ne $RC ]] && { echo "FATAL: Unable to reack remote branch: ${REMOTE}/${BRANFH}"; exit $RC; }
+[[ 0 -ne $RC ]] && { echo "FATAL: Unable to reack remote branch: ${REMOTE}/${BRANCH}"; exit $RC; }
 
 # branch has been tracked; checkout the code
 [[ -n $VERBOSE ]] && set -x
