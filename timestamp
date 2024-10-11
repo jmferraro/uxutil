@@ -20,6 +20,7 @@ while getopts cnqksh OPT; do
     n) OPT_N=1 ;;
     q) OPT_Q=1 ;;
     s) OPT_S=1 ;;
+    h) usage; exit ;;
     *) exit 22 ;;
   esac
 done
