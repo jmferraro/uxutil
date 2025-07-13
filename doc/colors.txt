@@ -1,0 +1,8 @@
+550nm:   a3ff00
+1837:    81d8d0
+blue:
+yellow:
+pink:
+purple:
+orange:
+

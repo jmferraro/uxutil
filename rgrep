@@ -1,5 +1,7 @@
 #!/bin/bash
 
+shopt -s globstar nullglob
+
 usage()
 {
   PGM=$(basename $0)
@@ -62,5 +64,5 @@ fi
 CMD+=(-print0)
 
 set -x
-exec ${CMD[@]} | xargs -0 -I '{}' grep -H ${GREP_OPT[@]} "$SRCH" "{}"
+exec ${CMD[@]} | xargs -0 grep -H ${GREP_OPT[@]} "$SRCH" 
 

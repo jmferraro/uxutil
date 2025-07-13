@@ -1,0 +1,5 @@
+apt install git
+apt install gnome-tweaks
+apt install gcc
+apt install g++
+snap install htop
