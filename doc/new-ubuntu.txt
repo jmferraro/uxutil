@@ -1,5 +1,34 @@
+INSTALL:
 apt install git
 apt install gnome-tweaks
 apt install gcc
 apt install g++
+sudo apt install vim-gtk3
+sudo apt install net-tools
+sudo apt install tkcvs
+sudo apt install meld
+sudo apt install rmlint
+sudo apt install net-tools
 snap install htop
+
+SSH:
+ssh-keygen -t ed25519 -b 4096 -a 100 -C "YOUR_EMAIL@EXAMPLE.COM"
+ssh-keygen -t rsa -b 4096 -a 100 -C "YOUR_EMAIL@EXAMPLE.COM"
+ssh-copy-id USER@HOST
+
+
+
+SSH SERVER (OPTIONAL):
+sudo apt install openssh-server
+sudo systemctl enable --now ssh
+sudo systemctl status ssh
+sudo ufw allow ssh
+sudo ufw enable
+
+X11:
+edit:
+  ~/.ssh/config
+add:
+  Host *
+      ForwardX11 yes
+
