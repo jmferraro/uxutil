@@ -18,15 +18,15 @@ usage()
 
 unset OPT_E OPT_F OPT_N OPT_V
 GREP_OPT=()
-while getopts :efilvh opt
+while getopts :efilnvh opt
 do
   case "$opt" in
     e) GREP_OPT+=(-E); OPT_E=1 ;;
-    f) GRFP_OPT+=(-F); OPT_F=1 ;;
+    f) GREP_OPT+=(-F); OPT_F=1 ;;
     i) GREP_OPT+=(-i) ;;
     l) GREP_OPT+=(-l) ;;
-    n) GREP_OPT+=(-n) OPT_N=1 ;;
-    v) GREP_OPT+=(-v) OPT_V=1 ;;
+    n) GREP_OPT+=(-n); OPT_N=1 ;;
+    v) GREP_OPT+=(-v); OPT_V=1 ;;
     h) usage; exit ;;
     *) echo "FATAL: Unknown option '-$OPTARG'"; exit 22 ;;
   esac
@@ -36,26 +36,72 @@ shift $((OPTIND-1))
 [[ $((OPT_N+OPT_V)) -gt 1 ]] && { echo "Conflicting options: -n and -v"; exit 22; }
 [[ $# -lt 2 ]] && { echo "Invalid command line"; exit 22; }
 
-WHERE=$1
+readonly WHERE=$1
 shift
-SRCH=$1
+readonly SRCH=$1
 shift
+
+# Function to convert glob pattern with braces to regex
+glob_to_regex() {
+  local -r PAT="$1"
+  # Convert *.{c,h} to .*\.(c|h)$
+  if [[ $PAT == *"{"* ]]; then
+    # Extract parts: prefix{alternatives}suffix
+    local PRE="${PAT%%\{*}"       # Remove longest match of \{* from end - everything before first {
+    local SUF="${PAT##*\}}"       # Remove longest match of *\} from beginning - everything after last }
+    local ALTS="${PAT#*\{}"       # Remove shortest match of *\{ from beginning - everything after first {
+    ALTS="${ALTS%\}*}"            # Remove shortest match of \}* from end - everything before first }
+
+    # Escape dots in prefix and suffix
+    PRE="${PRE//./\\.}"           # Replace all . with \. (escape dots for regex)
+    SUF="${SUF//./\\.}"           # Replace all . with \. (escape dots for regex)
+
+    # Replace * with .*
+    PRE="${PRE//\*/.*}"           # Replace all * with .* (convert glob wildcard to regex)
+    SUF="${SUF//\*/.*}"           # Replace all * with .* (convert glob wildcard to regex)
+
+    # Convert comma-separated alternatives to regex OR
+    ALTS="${ALTS//,/|}"           # Replace all , with | (convert comma list to regex OR)
+
+    echo ".*/.*${PRE}\\(${ALTS}\\)${SUF}"
+  else
+    # Regular glob pattern - convert to regex
+    local REGEX="$PAT"
+    REGEX="${REGEX//./\\.}"       # Escape dots
+    REGEX="${REGEX//\*/.*}"       # Convert * to .*
+    REGEX="${REGEX//\?/.}"        # Convert ? to .
+    echo ".*/.*${REGEX}"
+  fi
+}
+
+# Helper function to add pattern to find command
+add_pattern_to_cmd() {
+  local -r PAT="$1"
+  if [[ $PAT == *"{"* ]] || [[ $PAT == *"*"* ]] || [[ $PAT == *"?"* ]]; then
+    # Use regex for glob patterns
+    local -r REGEX=$(glob_to_regex "$PAT")
+    CMD+=(-regex "$REGEX")
+  else
+    # Simple name match
+    CMD+=(-name "$PAT")
+  fi
+}
 
 # build the command line:
 CMD=()
 CMD+=(find)
-CMD+=($WHERE)
+CMD+=("$WHERE")
 CMD+=(-type f)
 
 if [[ $# -eq 1 ]]; then
-  CMD+=(-name $1)
+  add_pattern_to_cmd "$1"
 elif [[ $# -ge 2 ]]; then
   NUM=0
   CMD+=(\()
   while [[ $# -ne 0 ]]; do
     [[ $NUM -gt 0 ]] && CMD+=(-o)
-    CMD+=(-name $1)
-    NUM+=$((NUM+1))
+    add_pattern_to_cmd "$1"
+    ((NUM++))
     shift
   done
   CMD+=(\))
@@ -63,6 +109,5 @@ fi
 
 CMD+=(-print0)
 
-set -x
-exec ${CMD[@]} | xargs -0 grep -H ${GREP_OPT[@]} "$SRCH" 
+exec "${CMD[@]}" | xargs -0 grep -H "${GREP_OPT[@]}" "$SRCH"
 

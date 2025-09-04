@@ -30,7 +30,7 @@ set keymodel=startsel
 
 set splitright " new vsplit windows on right
 set splitbelow " new split windows on bottom
-set nowrapscan " don't search back to the top
+set wrapscan   " search back to the top
 
 " disable beep every time I hit ESC
 set noeb vb t_vb=

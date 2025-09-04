@@ -4,7 +4,7 @@ PGM=$(basename $0)
 
 usage()
 {
-  echo "Usage: $(PGM) [-h] <file>"
+  echo "Usage: $PGM [-h] <file>"
   echo "Where:"
   echo "  -A : always display in less (even on success)"
   echo "  -h : This help text"
@@ -50,6 +50,9 @@ if [[ 0 -ne $RC || -n $OPT_A ]]; then
   if [[ $((3+OUTSZ)) -ge $LINES ]]; then
     clear
     less -R ${OUTF}
+  else
+    cat ${OUTF}
   fi
 fi
 exit $RC
+

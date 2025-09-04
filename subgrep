@@ -15,10 +15,10 @@ usage()
 PATS=()
 WHERE=.
 unset VERBOSE OPT_I
-while getopts :cd:ivh opt
+while getopts :cd:ivh OPT
 do
-  case "$opt" in
-    c) PATS=(*.c *.cpp *.h) ;;
+  case "$OPT" in
+    c) PATS=("*.{c,cpp,h}") ;;
     d) WHERE=$OPTARG ;;
     i) OPT_I="-i" ;;
     v) VERBOSE=1 ;;
@@ -37,6 +37,11 @@ if ! type -f rgrep > /dev/null 2>&1; then
 fi
 
 
-[[ -n $VERBOSE ]] && set -x
-exec rgrep $OPT_I $WHERE "$@" "${PATS[@]}"
+if [[ ${#PATS[@]} -gt 0 ]]; then
+  [[ -n $VERBOSE ]] && set -x
+  exec rgrep $OPT_I "$WHERE" "$1" "${PATS[@]}"
+else
+  [[ -n $VERBOSE ]] && set -x
+  exec rgrep $OPT_I "$1" "$WHERE" "${@:2}"
+fi
 

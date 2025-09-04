@@ -1,8 +1,9 @@
-550nm:   a3ff00
-1837:    81d8d0
-blue:
-yellow:
-pink:
-purple:
-orange:
+550nm:   A3FF00
+1837:    81D8D0
+blue:    1E90FF
+yellow:  FFFF55
+pink:    DA1884
+purple:  8F33FF
+orange:  FF7900
+red:     FF0000
 
