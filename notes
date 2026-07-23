@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 unset RGREP
 NOTES_ROOT=${HOME}/priv/notes
@@ -20,13 +20,13 @@ notesgrep()
 {
   echo ">>> notesgrep: '$1'"
   if [[ -n $RGREP ]]; then
-    grep $RGREP -H "$1"${NOTES_ROOT}
+    grep $RGREP -H "$1" ${NOTES_ROOT}
   else
     find -L ${NOTES_ROOT} -type f -print0 | xargs -0 grep -H "$1"
   fi
 
   # look for notes files that begin with thekeyword
-  mapfile -t FILE < <(find ${NOTES_ROOT} -type f -name "$1.*")
+  mapfile -t FILES < <(find ${NOTES_ROOT} -type f -name "$1.*")
   for FIL in "${FILES[@]}"; do
     echo $FIL:
     printf '-%.0s' {1..72}; printf '\n'

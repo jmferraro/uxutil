@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
@@ -12,7 +12,7 @@ usage() {
     echo "  -h, --help              Show this help message"
     echo ""
     echo "By default, existing git config settings will be preserved and warnings will be shown."
-    exit 1
+    exit 0
 }
 
 unset FORCE_OVERWRITE
@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
             usage
             ;;
         *)
-            echo "Unknown option: $1" && usage
+            echo "Unknown option: $1" && exit 22
             ;;
     esac
 done
@@ -36,25 +36,28 @@ done
 
 echo "Setting up git configuration from $GITCONFIG_FILE"
 
-local CURRENT_SECTION=""
+CURRENT_SECTION=""
 
 while IFS= read -r LINE; do
     # Remove leading whitespace: sed 's/^[[:space:]]*//'
     LINE="${LINE#"${LINE%%[![:space:]]*}"}"
     # Remove trailing whitespace: sed 's/[[:space:]]*$//'
     LINE="${LINE%"${LINE##*[![:space:]]}"}"
-    
+
     [[ -z "$LINE" || "$LINE" =~ ^# ]] && continue
-    
+
     if [[ "$LINE" =~ ^\[([^]]+)\]$ ]]; then
         CURRENT_SECTION="${BASH_REMATCH[1]}"
+        if [[ "$CURRENT_SECTION" =~ ^([^[:space:]]+)[[:space:]]+\"?([^\"]+)\"?$ ]]; then
+            CURRENT_SECTION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+        fi
         continue
     fi
-    
+
     if [[ "$LINE" =~ ^([^=]+)=(.*)$ ]]; then
-        local KEY="${BASH_REMATCH[1]}"
-        local VALUE="${BASH_REMATCH[2]}"
-        
+        KEY="${BASH_REMATCH[1]}"
+        VALUE="${BASH_REMATCH[2]}"
+
         # Remove leading whitespace: sed 's/^[[:space:]]*//'
         KEY="${KEY#"${KEY%%[![:space:]]*}"}"
         # Remove trailing whitespace: sed 's/[[:space:]]*$//'
@@ -63,24 +66,25 @@ while IFS= read -r LINE; do
         VALUE="${VALUE#"${VALUE%%[![:space:]]*}"}"
         # Remove trailing whitespace: sed 's/[[:space:]]*$//'
         VALUE="${VALUE%"${VALUE##*[![:space:]]}"}"
-        
+
         # Remove surrounding quotes: sed 's/^"\(.*\)"$/\1/'
         [[ "$VALUE" =~ ^\"(.*)\"$ ]] && VALUE="${BASH_REMATCH[1]}"
-        
-        local FULL_KEY="$CURRENT_SECTION.$KEY"
-        
+
+        FULL_KEY="$CURRENT_SECTION.$KEY"
+
         if [[ -z "$FORCE_OVERWRITE" ]]; then
-            local EXISTING_VALUE=$(git config --global --get "$FULL_KEY" 2>/dev/null || echo "")
-            
+            EXISTING_VALUE=$(git config --global --get "$FULL_KEY" 2>/dev/null || echo "")
+
             if [[ -n "$EXISTING_VALUE" && "$EXISTING_VALUE" != "$VALUE" ]]; then
                 echo "Warning: $FULL_KEY is already set to '$EXISTING_VALUE', skipping new value '$VALUE'"
                 continue
             fi
         fi
-        
+
         echo "Setting $FULL_KEY = $VALUE"
         git config --global "$FULL_KEY" "$VALUE"
     fi
 done < "$GITCONFIG_FILE"
 
 echo "Git configuration setup complete!"
+

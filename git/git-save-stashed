@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # in a git dir?
 ROOT_DIR=$(git rev-parse --show-cdup)
@@ -12,15 +12,43 @@ LIST=($(git stash list 2>/dev/null))
 RC=$?
 [[ $RC -ne 0 ]] && { echo "There does not appear to be any stashes"; exit $RC; }
 
-# get a list of the stashed files
-LIST=($(git stash show --name-only 2>/dev/null))
-RC=$?
-[[ $RC -ne 0 || ${#LIST[@]} -eq 0 ]] && { echo "There does not appear to be any stashes"; exit $RC; }
+# Collect stashed changes as "STATUS<TAB>path" pairs.  Using --name-status
+# (instead of --name-only) lets us distinguish deletions — `git show
+# stash@{0}:<file>` fails for files the stash removed, so we must skip
+# content extraction for D entries.  Rename status (R100\t<old>\t<new>)
+# would need an explicit parse if we ever stash renames, but `git stash`
+# doesn't normally produce them, so don't bother.
+STATUS_LINES=()
+while IFS= read -r line; do
+  [[ -n $line ]] && STATUS_LINES+=("$line")
+done < <(git stash show --name-status 2>/dev/null)
+[[ ${#STATUS_LINES[@]} -eq 0 ]] && { echo "There does not appear to be any stashed files"; exit 0; }
 
-for FN in "${LIST[@]}"; do
+SAVED=0
+SKIPPED_DELETED=0
+for entry in "${STATUS_LINES[@]}"; do
+  STATUS=${entry%%$'\t'*}
+  FN=${entry#*$'\t'}
+  case "$STATUS" in
+    D)
+      echo "skipping deleted-in-stash: $FN (no content to save)"
+      SKIPPED_DELETED=$((SKIPPED_DELETED+1))
+      continue
+      ;;
+    A|M)
+      : # save content below
+      ;;
+    *)
+      echo "warning: unexpected status '$STATUS' for $FN; skipping"
+      continue
+      ;;
+  esac
   FNSS=$FN.SAVE_STASH
   [[ -e $FNSS ]] && { echo "SAVE_STASH file already exists: $FNSS"; exit 17; }
   echo "git show stash@{0}:$FN > $FNSS"
-  git show stash@{0}:$FN >| $FNSS
+  git show "stash@{0}:$FN" >| "$FNSS"
+  SAVED=$((SAVED+1))
 done
+
+echo "saved: $SAVED  skipped (deleted): $SKIPPED_DELETED  total: ${#STATUS_LINES[@]}"
 

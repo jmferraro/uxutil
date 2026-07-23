@@ -108,12 +108,33 @@ autocmd Filetype    cpp setlocal ts=4 sts=4 sw=4 et
 autocmd Filetype python setlocal ts=4 sts=4 sw=4 et
 
 " automatically remove trailing whitespace
-autocmd BufWritePre * :%s/\s\+$//e
+"autocmd BufWritePre * :%s/\s\+$//e
+
+" --- better, keeping the cursor where it belongs ---
+function! TrimTrailingWhitespace()
+   let save_view = winsaveview()
+   :%s/\s\+$//e
+   call winrestview(save_view)
+endfunction
+
+autocmd BufWritePre * call TrimTrailingWhitespace()
+" ---------------------------------------------------
 
 " additional matching logic if vim >= 7.4
 if version >= 700
    runtime macros/matchit.vim
 endif
+
+" additional language features -- enable modern C syntax features
+let c_C99 = 1
+let c_C11 = 1
+
+" allow nested braces: x = {{ 0 }}
+let c_no_bracket_error = 1
+
+" allow .vimrc per project
+" set exrc  " Enable local vimrc files
+" set secure  " Restrict dangerous commands in local .vimrc
 
 " the following options are only for gvim
 if has('gui_running')

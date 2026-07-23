@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# grepdoc PATTERN [FILE...] - grep the text of .doc/.odt/.docx files
+# Defaults to *.doc in the current directory when no files are given.
+
+set -o pipefail
+
+if [[ $# -lt 1 ]]; then
+    echo "usage: grepdoc PATTERN [FILE...]" >&2
+    exit 2
+fi
+
+if ! command -v textutil >/dev/null 2>&1; then
+    echo "grepdoc: requires 'textutil' (not installed)" >&2
+    exit 1
+fi
+
+pattern=$1
+shift
+
+if [[ $# -eq 0 ]]; then
+    set -- *.doc
+fi
+
+status=1
+
+for f in "$@"; do
+    [[ -f "$f" ]] || continue
+
+    kind=$(file -b "$f")
+    case "$kind" in
+        *Zip*|*OpenDocument*|*Word\ 2007*)
+            # Really an ODT/DOCX under a .doc name; text lives in the XML.
+            text=$(unzip -p "$f" 'word/document.xml' 'content.xml' 2>/dev/null |
+                   sed -e 's/<[^>]*>/ /g')
+            ;;
+        *)
+            text=$(textutil -convert txt -stdout "$f" 2>/dev/null)
+            ;;
+    esac
+
+    if [[ -z "$text" ]]; then
+        echo "grepdoc: could not extract text from $f ($kind)" >&2
+        continue
+    fi
+
+    if printf '%s\n' "$text" | grep -iH --label="$f" -- "$pattern"; then
+        status=0
+    fi
+done
+
+exit $status

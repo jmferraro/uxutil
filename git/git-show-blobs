@@ -1,9 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# numfmt is GNU coreutils; on macOS install via: brew install coreutils
+[[ "Darwin" == $(uname) ]] && ! type -f numfmt &>/dev/null && { echo "numfmt not found; install via: brew install coreutils"; exit 127; }
 
 git rev-list --objects --all \
   | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' \
   | awk '/^blob/ {print substr($0,6)}' \
-  | sort --numeric-sort --key=2 \
-  | cut --complement --characters=13-40 \
+  | sort -n -k2 \
+  | cut -c 1-12,41- \
   | numfmt --field=2 --to=iec --suffix=B --padding=7 --round=nearest
+# NOTE: cut -c 1-12,41- is equivalent to GNU cut --complement --characters=13-40
 

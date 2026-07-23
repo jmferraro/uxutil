@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # TODO: add recursion
 
@@ -13,14 +13,18 @@ usage()
   echo "  -h     : this help text"
 }
 
+# Linux uses -c, mac uses -f for the same functionality
+# detect by capability since GNU coreutils may be installed on macOS
+stat -c "%d" /dev/null &>/dev/null && STAT_FLG=-c || STAT_FLG=-f
+
 run_diff()
 {
   [[ -n ${VERBOSE} ]] && echo -n "File: $1"
   LFILE=$DIR1/$1
   RFILE=$DIR2/$1
 
-  I1=$(stat -c "%d-%i" $LFILE)
-  I2=$(stat -c "%d-%i" $RFILE)
+  I1=$(stat $STAT_FLG "%d-%i" "$LFILE")
+  I2=$(stat $STAT_FLG "%d-%i" "$RFILE")
 
   if [[ $I1 == $I2 ]]; then
     [[ -n $VERBOSE ]] && echo " :> SAME DEVICE/INODE"
@@ -28,7 +32,7 @@ run_diff()
     return
   fi
 
-  if cmp -s $LFILE $RFILE; then
+  if cmp -s "$LFILE" "$RFILE"; then
     [[ -n $VERBOSE ]] && echo " :> IDENTICAL"
     SAME=$((SAME+1))
     return
@@ -36,7 +40,7 @@ run_diff()
 
   [[ -n $VERBOSE ]] && echo " :> DIFFERS"
   [[ "cmp" == $CMD ]] && return
-  $CMD $LFILE $RFILE
+  $CMD "$LFILE" "$RFILE"
 }
 
 # --- main execution begins here ---
@@ -52,7 +56,7 @@ fi
 unset VERBOSE XOUTPUT
 while getopts :p:vxh OPT; do
   case $OPT in
-    p) PGM=$OPTARG ;;
+    p) CMD=$OPTARG ;;
     v) VERBOSE=1 ;;
     x) XOUTPUT=1 ;;
     h) usage; exit ;;
@@ -73,8 +77,8 @@ DIR2=$2
 
 # get the differences
 RESULTS=$(comm  --output-delimiter='|'\
-  <(find $DIR1 -maxdepth 1 -type f -exec basename {} \; | sort)\
-  <(find $DIR2 -maxdepth 1 -type f -exec basename {} \; | sort))
+  <(find "$DIR1" -maxdepth 1 -type f -exec basename {} \; | sort)\
+  <(find "$DIR2" -maxdepth 1 -type f -exec basename {} \; | sort))
 
 # classify the results
 LONLY=0
@@ -96,8 +100,8 @@ for LN in ${RESULTS[@]}; do
 done
 
 # process files in both lists
-for FN in ${BOTH[@]}; do
-  run_diff $FN
+for FN in "${BOTH[@]}"; do
+  run_diff "$FN"
 done
 
 BOTH_NUM=${#BOTH[@]}
@@ -105,8 +109,8 @@ if [[ -n $XOUTPUT && $BOTH_NUM -gt 0 ]]; then
   [[ -n $VERBOSE ]] && printf "\n"
   printf "=%.0s" {1..80}; printf "\n"
   echo "Files in both ($BOTH_NUM):"
-  for FN in ${BOTH[@]}; do
-    echo $FN
+  for FN in "${BOTH[@]}"; do
+    echo "$FN"
   done
   printf "=%.0s" {1..80}; printf "\n"
 fi

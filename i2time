@@ -1,11 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
+
+# GNU date uses -d for epoch conversion, macOS /bin/date uses -r
+# detect by capability since GNU coreutils may be installed on macOS
+unset USE_DATE_R
+date -d "@0" "+%s" &>/dev/null || USE_DATE_R=1
 
 usage()
 {
   echo "Usage: $(basename $0) [OPTS] <time[.fract|s|m|u|n]..."
   echo "Where OPTS:"
-  echo "  -U : print time in UTC"
+  echo "  -u : print time in UTC"
   echo "  -h : this help text"
   echo ""
   echo "NOTE: The specified time(s) can optionally end in one of: s, m, u, n"
@@ -60,7 +65,8 @@ printTime()
   #echo ">>> UNITS: $UNITS"
   #echo ">>> FRACT: $FRACT"
 
-  local -r STAMP=$(date $UTC -d "@$VAL" "+%Y-%m-%d %H:%M:%S")
+  [[ -n $USE_DATE_R ]] && local -r STAMP=$(date $UTC -r "$VAL" "+%Y-%m-%d %H:%M:%S") \
+                      || local -r STAMP=$(date $UTC -d "@$VAL" "+%Y-%m-%d %H:%M:%S")
   local -r ZONE=$(date $UTC "+%Z [%z]")
 
   echo -n $STAMP
@@ -71,7 +77,7 @@ printTime()
 unset UTC
 while getopts uh OPT; do
   case $OPT in
-    u) UTC=--utc ;;
+    u) UTC=-u ;;
     h) usage; exit ;;
   esac
 done

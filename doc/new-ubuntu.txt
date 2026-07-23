@@ -11,6 +11,8 @@ sudo apt install meld
 sudo apt install rmlint
 sudo apt install net-tools
 snap install htop
+sudo apt install moreutils   # errno
+sudo apt install shellcheck  # shell script linter / static analysis
 
 
 apt install intel-oneapi-compiler-dpcpp-cpp

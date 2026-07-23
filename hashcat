@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage()
 {
@@ -50,14 +50,15 @@ unset LINES
 while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
   ORIG=$LINE
   if [[ -n $TRIM ]]; then
-    LINE=$(trim $LINE)
+    LINE=$(trim "$LINE")
     [[ -n $SHOW_TRIM ]] && ORIG=$LINE
   fi
   LNUM=$((LNUM+1))
   fmtln=$(printf "%06d" $LNUM)
   TAIL=" : $ORIG"
   if [[ -n $CUME ]]; then
-    if [[ -n $LINES ]]; then LINES="${LINES}\n"; fi
+    if [[ -n $LINES ]]; then LINES="${LINES}
+"; fi
     LINES="${LINES}${LINE}"
     LINE=${LINES}
   fi

@@ -1,58 +1,84 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-PGM=$(basename $0)
+PGM=$(basename "$0")
 
 usage()
 {
-  echo "Usage: $PGM [-h] <file>"
+  echo "Usage: $PGM [-A] [-h] [-o file] <command> [args...]"
   echo "Where:"
-  echo "  -A : always display in less (even on success)"
-  echo "  -h : This help text"
-  echo "If file name is specified, the file will not be deleted"
+  echo "  -A      : always display output (even on success)"
+  echo "  -o file : save output to specified file (not deleted)"
+  echo "  -h      : this help text"
+  echo ""
+  echo "Runs <command>, capturing stdout+stderr.  If the command fails, the"
+  echo "output does not fit on screen, or -A is given, the output is shown"
+  echo "(paged with less when large); otherwise it is suppressed."
+  echo ""
+  echo "Pass the command AS ARGUMENTS ($PGM cmd ...), not through a pipe"
+  echo "('cmd | $PGM'): a piped reader cannot see the command's exit status."
 }
 
-unset OPT_A
-while getopts Ah OPT; do
+unset OPT_A OUTF_SPECIFIED OUTF PIPE_FALLBACK
+while getopts Ao:h OPT; do
   case $OPT in
     A) OPT_A=1 ;;
-    h) usage; exit ;;
+    o) OUTF="$OPTARG"; OUTF_SPECIFIED=1 ;;
+    h) usage; exit 0 ;;
     *) exit 22 ;;
   esac
 done
 shift $((OPTIND-1))
 
-[[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/var/tmp
-
-case $# in
-  0)
-    OUTF=$(mktemp -p $TMPDIR ${PGM}.XXXXXXXXXXX)
-    trap "rm ${OUTF}" EXIT
-    ;;
-  1)
-    OUTF=$1
-    ;;
-  *)
-    echo "Invalid command line"
+# No command given: tolerate the deprecated 'cmd | torl' form, else error.
+if [[ $# -eq 0 ]]; then
+  if [[ -p /dev/stdin ]]; then
+    PIPE_FALLBACK=1
+  else
+    echo "$PGM: error: command required" >&2
+    usage >&2
     exit 22
-    ;;
-esac
+  fi
+fi
 
-tee < /dev/stdin $OUTF
-RC=$?
+# ensure a temp dir exists
+[[ ! -d $HOME/tmp ]] && mkdir -p "$HOME/tmp"
+[[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/tmp
+
+# create the output file; use a full-path template so it lands in TMPDIR on
+# both GNU and BSD (a bare 'mktemp foo.XXX' ignores TMPDIR and uses the CWD)
+if [[ -z $OUTF_SPECIFIED ]]; then
+  OUTF=$(mktemp "${TMPDIR}/${PGM}.XXXXXXXXXXX") || { echo "$PGM: cannot create temp file" >&2; exit 1; }
+  trap 'rm -f "$OUTF"' EXIT
+fi
+
+if [[ -n $PIPE_FALLBACK ]]; then
+  # Misused as a pipe consumer.  A piped reader cannot see the upstream exit
+  # status, so capture the piped output and treat it as a failure (best-effort
+  # fallback) so the output is still displayed.
+  echo "$PGM: WARNING: used in a pipe ('cmd | $PGM')." >&2
+  echo "$PGM: correct usage is '$PGM [opts] cmd [args...]'; a piped reader cannot see" >&2
+  echo "$PGM: the command's exit status.  Capturing input and treating it as failed." >&2
+  cat > "$OUTF"
+  RC=1
+else
+  # Run the command, capturing stdout+stderr and its real exit status.
+  "$@" > "$OUTF" 2>&1
+  RC=$?
+fi
+
 if [[ 0 -ne $RC || -n $OPT_A ]]; then
   [[ -z $LINES ]] && LINES=$(tput lines)
   [[ -z $COLUMNS ]] && COLUMNS=$(tput cols)
   if [[ -z $COLUMNS ]]; then
-    OUTSZ=$(wc -l < ${OUTF})
+    OUTSZ=$(wc -l < "$OUTF")
   else
-    OUTSZ=$(fold -w "$COLUMNS" ${OUTF} | wc -l)
+    OUTSZ=$(fold -w "$COLUMNS" "$OUTF" | wc -l)
   fi
   if [[ $((3+OUTSZ)) -ge $LINES ]]; then
     clear
-    less -R ${OUTF}
+    less -R "$OUTF"
   else
-    cat ${OUTF}
+    cat "$OUTF"
   fi
 fi
 exit $RC
-

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage()
 {
@@ -14,7 +14,7 @@ usage()
 CMDLINES=0
 unset HALF NUM NO_COLOR
 while getopts :1234567890C/h opt; do
-  echo "opt: '$opt'"
+  #echo "opt: '$opt'"
   case $opt in
     [0-9]) NUM=1; CMDLINES=$((CMDLINES*10+opt)) ;;
         C) NO_COLOR=1 ;;
@@ -25,7 +25,7 @@ while getopts :1234567890C/h opt; do
 done
 shift $((OPTIND-1))
 #echo "CMDLINES: $CMDLINES"
-[[ -z $NO_COLOR ]] && echo -en "\e[1;37m"
+[[ -z $NO_COLOR ]] && echo -en "\033[1;37m"
 
 # / and numbers mutally exclusive
 [[ -n $HALF && -n $NUM ]] && { echo "FATAL: count and half cannot be specified together"; exit 22; }
@@ -56,4 +56,4 @@ while [[ 0 -ne $NUM ]]; do
   NUM=$((NUM-1))
 done
 
-[[ -z $NO_COLOR ]] && echo -en "\e[0m"
+[[ -z $NO_COLOR ]] && echo -en "\033[0m"

@@ -1,17 +1,38 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage()
 {
-  echo "Usage: [-a|h] $(basename $0) <file>"
+  echo "Usage: [-a|h] $(basename "$0") <file>"
   echo "Where:"
   echo "  -a : append to output file (default: overwrite)"
   echo "  -h : this help text"
 }
 
+# Answer a help request locally BEFORE deferring: the native moreutils sponge
+# has no -h (depending on version it rejects the option and then blocks reading
+# stdin), so a passed-through -h is unreliable.  Scan stops at '--'.
+for ARG in "$@"; do
+  [[ $ARG == -- ]] && break
+  [[ $ARG == -*h* ]] && { usage; exit 0; }
+done
+
+# If a native sponge (e.g. from moreutils) is installed, defer to it.  Our copy
+# is a shell script named 'sponge'; the native one is a compiled binary, so use
+# the first 'sponge' in PATH that is not a shell script (does not begin with #!).
+NATIVE_SPONGE=
+while IFS= read -r CAND; do
+  [[ -x $CAND ]] || continue
+  IFS= read -rn2 MAGIC < "$CAND" 2>/dev/null
+  [[ $MAGIC == '#!' ]] && continue          # skip shell scripts (incl. this one)
+  NATIVE_SPONGE=$CAND
+  break
+done < <(type -aP sponge 2>/dev/null)
+[[ -n $NATIVE_SPONGE ]] && exec "$NATIVE_SPONGE" "$@"
+
 cleanTmp()
 {
   [[ -r $1 ]] || exit  # nothing to clean
-  rm $1
+  rm "$1"
 }
 
 unset OPT_A
@@ -19,6 +40,7 @@ while getopts ah OPT; do
   case $OPT in
     a) OPT_A=1 ;;
     h) usage; exit ;;
+    *) exit 22 ;;
   esac
 done
 shift $((OPTIND-1))
@@ -27,22 +49,22 @@ shift $((OPTIND-1))
 [[ 1 -ne $# ]] && { echo "Invalid command line"; exit 22; }
 
 # look for tmp dir
-[[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/var/tmp
+[[ ! -d $HOME/tmp ]] && mkdir -p "$HOME/tmp"
+[[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/tmp
 
-# create tmp file
-TMPF=$(mktemp -p $TMPDIR sponge.XXXXXXXXXXX)
+# mktemp -p is unsupported on macOS; a full-path template puts the file in TMPDIR
+TMPF=$(mktemp "${TMPDIR}/sponge.XXXXXXXXXXX")
 
 # set trap to clean up
-trap "cleanTmp ${TMPF}" EXIT
+trap 'cleanTmp "$TMPF"' EXIT
 
 # capture the input
-cat < /dev/stdin > $TMPF
+cat < /dev/stdin > "$TMPF"
 
 # NOTE: cannot exec because trap will not run
 # create the output
 if [[ -n $OPT_A ]]; then
-  cat $TMPF >> $1
+  cat "$TMPF" >> "$1"
 else
-  mv $TMPF $1
+  mv "$TMPF" "$1"
 fi
-

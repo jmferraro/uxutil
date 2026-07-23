@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage()
 {
@@ -12,7 +12,13 @@ usage()
   echo "  -h : this help text"
 }
 
-unset OPT_C OPT_K OPT_N OPT_N OPT_Q OPT_S
+# GNU stat uses --format, macOS /bin/stat uses -f
+# GNU date uses -d for epoch conversion, macOS /bin/date uses -r
+# detect by capability since GNU coreutils may be installed on macOS
+unset USE_BSD_STAT
+stat --format=%y /dev/null &>/dev/null || USE_BSD_STAT=1
+
+unset OPT_C OPT_K OPT_N OPT_Q OPT_S
 while getopts cnqksh OPT; do
   case $OPT in
     c) OPT_C=1 ;;
@@ -70,7 +76,13 @@ while [[ $# -ne 0 ]]; do
   fi
 
   # stat format %Y doesn't give nanoseconds: use & parse output from %y (human readable)
-  FTIME=$(stat --format=%y $1 | cut -f1-2 -d' ' | sed 's/[-:]//g' | sed 's/ /-/g')
+  # macOS stat/date cannot provide nanoseconds
+  if [[ -n $USE_BSD_STAT ]]; then
+    EPOCH=$(stat -f "%m" "$1")
+    FTIME=$(date -r $EPOCH "+%Y%m%d-%H%M%S")
+  else
+    FTIME=$(stat --format=%y "$1" | cut -f1-2 -d' ' | sed 's/[-:]//g' | sed 's/ /-/g')
+  fi
   [[ -z $OPT_N ]] && FTIME=${FTIME%.*} # strip nanos
   if [[ -n $OPT_Q ]]; then
     echo "$FTIME : $1"

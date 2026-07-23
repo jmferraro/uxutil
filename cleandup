@@ -1,0 +1,223 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+use File::Basename;
+use File::Compare;
+use File::Temp qw(tempfile);
+use Getopt::Long;
+
+my $version = "0.2.0";
+my $prog = basename $0;         # base name for this program
+
+# defaults
+my $both       = 0;
+my $link       = 0;
+my $no_exec    = 0;
+my $no_hdr     = 0;              # ignore RCS $Header
+my $no_recurse = 0;
+my $quiet      = 0;
+my $verbose    = 0;
+
+# parse the command line (options first)
+Getopt::Long::Configure('require_order', 'bundling_override');
+{
+  my ($help, $getver) = (0, 0);
+  my $rc = GetOptions("B|both"       => \$both,
+                      "L|link"       => \$link,
+                      "no_hdr"       => \$no_hdr,
+                      "n|no_exec"    => \$no_exec,
+                      "R|no_recurse" => \$no_recurse,
+                      "q|quiet"      => \$quiet,
+                      "v|verbose+"   => \$verbose,
+                      "V|version"    => \$getver,
+                      "h|help|?"     => \$help);
+  if (!$rc || $help != 0) {
+    &usage();
+    exit 1 * !$rc;
+  }
+  if ($getver != 0) {
+    print "$prog - version $version\n";
+    exit;
+  }
+
+  $verbose = 0 if $quiet == 1;
+}
+
+# globals
+my ($sav, $del);
+
+# any options left?
+# no options : del all files in common w/ parent
+if (scalar @ARGV > 0) {
+  die "Incorrect number of arguments" unless scalar @ARGV == 2;
+  ($sav, $del) = @ARGV;
+}
+else {
+  ($sav, $del, $no_recurse) = ("..", ".", 1);
+}
+
+$sav =~ s|(.*)[\\\/]$|$1|g;                   # remove trailing / or \
+$del =~ s|(.*)[\\\/]$|$1|g;                   # remove trailing / or \
+
+die "Error: sav directory is empty after stripping" if $sav eq '';
+die "Error: del directory is empty after stripping" if $del eq '';
+
+my $errors = 0;
+&clean_dir($sav);
+exit($errors ? 1 : 0);
+
+sub clean_dir {
+  my $file;
+  my $dir = $_[0];                              # get the dir to search
+
+  if (! -r $dir) {                              # if unreadable
+    print "Error: unreadable dir: $dir\n";      # print error
+    $errors++;
+    return;                                     # cannot continue
+  }
+
+  my @files = &read_dir($dir);                  # read it in
+  foreach $file (@files) {                      # loop thru files
+    if (-d "$dir/$file") {                      # if directory
+      if (!$link && -l "$dir/$file") {          # skipping symlinks?
+          next;
+      }
+      next if $no_recurse;                      # no recursion
+      &clean_dir("$dir/$file");                 # recurse
+    }
+    else {
+      my $path = "$dir/$file";                  # generate file path
+      print "Checking: $path\n" if $verbose > 1;# print trace
+      my $name = substr($path, 1+length $sav);  # extract relative path
+      my $seek = "$del/$name";                  # generate posdup name
+      next if ! -e $seek;                       # skip if it doesn't exist
+      next if -d $seek;                         # skip if it's a directory
+      print "Cmparing: $seek\n" if $verbose > 2;# print trace
+      my $cmp = &my_cmp($path, $seek);          # compare the files
+      if (!$cmp) {                              # no differences?
+        my $same = is_same($path, $seek);       # is it the same file?
+        next if ($same && !$both);              # don't delete only copy!
+        print "Deleting: $seek\n" if $verbose;  # trace
+        unless ($no_exec) {
+          unlink $seek or do { print "Error: cannot delete $seek: $!\n"; $errors++; };
+        }
+        if ($both && !$same) {
+            print "Deleting: $path\n" if $verbose > 1;
+            unless ($no_exec) {
+              unlink $path or do { print "Error: cannot delete $path: $!\n"; $errors++; };
+            }
+        }
+      }
+    }
+  }
+
+  # clean up empty directories
+  return if $dir eq $sav;                        # return if at root
+  my $relpath = substr($dir, 1+length $sav);     # extract relative dir path
+
+  # remove empty del directory
+  my $chk = "$del/$relpath";
+  if (-e $chk) {
+    @files = &read_dir($chk);
+    if (-1 == $#files) {                         # empty?
+      print "Removing: $chk/\n" if $verbose;
+      unless ($no_exec) {
+        rmdir $chk or do { print "Error: cannot rmdir $chk: $!\n"; $errors++; };
+      }
+    }
+  }
+
+  # remove empty sav directory when --both is active
+  if ($both && -e $dir) {
+    @files = &read_dir($dir);
+    if (-1 == $#files) {                         # empty?
+      print "Removing: $dir/\n" if $verbose;
+      unless ($no_exec) {
+        rmdir $dir or do { print "Error: cannot rmdir $dir: $!\n"; $errors++; };
+      }
+    }
+  }
+
+  return;
+}
+
+# =============================================================================
+
+sub read_dir {
+  my $dir = $_[0];
+  opendir my $dh, $dir or do { print "Error: cannot open $dir: $!\n"; $errors++; return (); };
+  my @files = grep { $_ ne '.' and $_ ne '..' } readdir $dh;
+  closedir $dh;
+  return @files;
+}
+
+# =============================================================================
+
+sub my_cmp {
+  my ($file1, $file2) = @_;
+
+  if ($no_hdr > 0) {
+    my ($fh1, $tmp1) = tempfile("cleandup-XXXXXX", TMPDIR => 1, UNLINK => 1);
+    my ($fh2, $tmp2) = tempfile("cleandup-XXXXXX", TMPDIR => 1, UNLINK => 1);
+
+    &filter_hdr($file1, $fh1);
+    &filter_hdr($file2, $fh2);
+
+    close $fh1;
+    close $fh2;
+
+    my $rc = compare($tmp1, $tmp2);
+    # temp files auto-cleaned by File::Temp UNLINK => 1
+    return $rc;
+  }
+  else {
+    print "Executing: compare($file1, $file2)\n" if $verbose > 1;
+    return compare($file1, $file2);
+  }
+}
+
+# =============================================================================
+
+# filter_hdr - copy file to output handle, stripping $Header and $Id lines
+
+sub filter_hdr {
+  my ($infile, $out_fh) = @_;
+  open my $in_fh, '<', $infile or do { print "Error: cannot read $infile: $!\n"; $errors++; return; };
+  while (my $line = <$in_fh>) {
+    next if $line =~ /\$Header/;
+    next if $line =~ /\$Id/;
+    print $out_fh $line;
+  }
+  close $in_fh;
+}
+
+# =============================================================================
+
+sub is_same {
+    my ($file1, $file2) = @_;
+    my ($dev1, $ino1) = (stat($file1))[0, 1];
+    my ($dev2, $ino2) = (stat($file2))[0, 1];
+    my $id1 = "$dev1:$ino1";
+    my $id2 = "$dev2:$ino2";
+    return ($id1 eq $id2) ? 1 : 0;
+}
+
+# =============================================================================
+
+sub usage {
+  print "Usage: $prog [options] [dir1 dir2]\n\n";
+  print "Deletes files from dir2 that are duplicates of files in dir1.\n";
+  print "Options:\n";
+  print "    -B, --both       - delete both copies if duplicate is found (both dir1 and dir2)\n";
+  print "    -L, --link       - follow symlinks while walking dir tree\n";
+  print "        --no_hdr     - ignore \$Header and \$Id lines in source\n";
+  print "    -n, --no_execute - dry run, show what would be deleted\n";
+  print "    -q, --quiet      - quiet (multiple = more quiet)\n";
+  print "    -R, --no_recurse - do not recurse directory tree\n";
+  print "    -v, --verbose    - verbose (multiple = more verbose)\n";
+  print "    -V, --Version    - print version number and exit\n";
+  print "    -h, --help       - show this help text\n\n";
+}
+
+# ------------------------------- END OF FILE ---------------------------------

@@ -7,3 +7,14 @@ purple:  8F33FF
 orange:  FF7900
 red:     FF0000
 
+1837:    81D8D0
+550:     A3FF00
+589:     FFE200
+Blue:    1E90FF
+Orange:  FF7900
+Pink:    DA1884
+Purple:  8F33FF
+Red:     FF0000
+White:   FFFFFF / BOLD: F9F06B
+Yellow:  FFFF55
+

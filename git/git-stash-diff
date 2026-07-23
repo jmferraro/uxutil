@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 DIFF=tkdiff
 # check for arguments
@@ -6,7 +6,7 @@ if [[ $# -eq 1 ]]; then
   [[ "--meld" == "$1" ]] && DIFF=meld
   shift
 fi
-[[ $# -ne 0 ]] && { echo "Invalid command line"; exit -1; }
+[[ $# -ne 0 ]] && { echo "Invalid command line"; exit 22; }
 
 # in a git directory?
 git rev-parse --git-dir > /dev/null 2>&1
@@ -14,9 +14,8 @@ RC=$?
 [[ $RC -ne 0 ]] && { echo "Does not appear to be a git working directory"; exit $RC; }
 
 # is there a stash?
-LIST=($(git stash list 2>/dev/null))
-RC=$?
-[[ $RC -ne 0 || ${#LIST[@]} -eq 0 ]] && { echo "There doesn't appear to be any stashes"; exit $RC; }
+mapfile -t LIST < <(git stash list 2>/dev/null)
+[[ ${#LIST[@]} -eq 0 ]] && { echo "There doesn't appear to be any stashes"; exit 0; }
 
 # get the root of the git dir
 ROOT_DIR=$(git rev-parse --show-cdup)
@@ -24,35 +23,83 @@ RC=$?
 [[ $RC -ne 0 ]] && { echo "Unable to get top-level dir"; exit $RC; }
 [[ -z $ROOT_DIR ]] || ROOT_DIR="$ROOT_DIR/"
 
-# get the list of stashed files
-LIST=($(git stash show --name-only 2>/dev/null))
-RC=$?
-[[ $RC -ne 0 || ${#LIST[@]} -eq 0 ]] && { echo "There doesn't appear to be any stashed files"; exit $RC; }
+# Collect stashed changes as "STATUS<TAB>path" pairs.  --name-status
+# lets us handle deletions (D) and additions (A) explicitly — `git show
+# stash@{0}:<file>` fails for D entries because the content isn't in the
+# stash's tree, and for A entries the cwd may not have the file yet.
+STATUS_LINES=()
+while IFS= read -r line; do
+  [[ -n $line ]] && STATUS_LINES+=("$line")
+done < <(git stash show --name-status 2>/dev/null)
+[[ ${#STATUS_LINES[@]} -eq 0 ]] && { echo "There doesn't appear to be any stashed files"; exit 0; }
 
-# set up temp file comparison
-TMPFILE=$(mktemp -p $HOME/tmp stash.XXXXXXXXXXX)
-trap "rm ${TMPFILE}" EXIT
+# mktemp -p is unsupported on macOS; a full-path template puts the file in TMPDIR
+[[ ! -d $HOME/tmp ]] && mkdir -p "$HOME/tmp"
+[[ -d $HOME/tmp ]] && TMPDIR=$HOME/tmp || TMPDIR=/tmp
+TMPFILE=$(mktemp "${TMPDIR}/stash.XXXXXXXXXXX")
+EMPTY=$(mktemp "${TMPDIR}/stash.empty.XXXXXXXXXXX")
+trap 'rm -f "$TMPFILE" "$EMPTY"' EXIT
 
 # iterate over the stashed files, comparing each
 MATCH=0
 DIFFER=0
-for FN in "${LIST[@]}"; do
-  git show "stash@{0}:$FN" >| $TMPFILE
-  RC=$?
-  [[ $RC -ne 0 ]] && { echo "Unable to get stashed file: $FN"; exit $RC; }
-  # no need to display in GUI if the files match
-  diff -q ${ROOT_DIR}${FN} $TMPFILE > /dev/null 2>&1
-  if [[ 0 -eq $? ]]; then
+SKIP_DELETED=0
+for entry in "${STATUS_LINES[@]}"; do
+  STATUS=${entry%%$'\t'*}
+  FN=${entry#*$'\t'}
+  CWD_FILE="${ROOT_DIR}${FN}"
+
+  case "$STATUS" in
+    D)
+      # Stash deletes this file.  Agreement with cwd = file should also
+      # be absent.  Disagreement = file exists in cwd.
+      if [[ -e "$CWD_FILE" ]]; then
+        echo "Deleted in stash but present in cwd: $FN"
+        $DIFF "$CWD_FILE" "$EMPTY"
+        DIFFER=$((DIFFER+1))
+      else
+        MATCH=$((MATCH+1))
+      fi
+      SKIP_DELETED=$((SKIP_DELETED+1))
+      continue
+      ;;
+    A)
+      # Stash adds this file.  If cwd doesn't have it, compare against
+      # empty so the GUI shows all stashed content as "to be added".
+      git show "stash@{0}:$FN" >| "$TMPFILE"
+      RC=$?
+      [[ $RC -ne 0 ]] && { echo "Unable to get stashed file: $FN"; continue; }
+      if [[ ! -e "$CWD_FILE" ]]; then
+        echo "Added in stash but missing from cwd: $FN"
+        $DIFF "$EMPTY" "$TMPFILE"
+        DIFFER=$((DIFFER+1))
+        continue
+      fi
+      ;;
+    M)
+      git show "stash@{0}:$FN" >| "$TMPFILE"
+      RC=$?
+      [[ $RC -ne 0 ]] && { echo "Unable to get stashed file: $FN"; continue; }
+      ;;
+    *)
+      echo "warning: unexpected status '$STATUS' for $FN; skipping"
+      continue
+      ;;
+  esac
+
+  # Existence of both sides + content comparison.
+  if diff -q "$CWD_FILE" "$TMPFILE" > /dev/null 2>&1; then
     MATCH=$((MATCH+1))
   else
-    $DIFF ${ROOT_DIR}${FN} $TMPFILE
+    $DIFF "$CWD_FILE" "$TMPFILE"
     DIFFER=$((DIFFER+1))
   fi
 done
 
 echo "Identical files: ${MATCH}"
 echo "Different files: ${DIFFER}"
-echo "Total files: ${#LIST[@]}"
+echo "Skipped (deletions): ${SKIP_DELETED}"
+echo "Total files: ${#STATUS_LINES[@]}"
 
 # maybe this instead?
 # Perfect pair:

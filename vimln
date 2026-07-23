@@ -1,8 +1,8 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 [[ $# -eq 0 ]] && exec vim
 [[ $# -gt 1 || $1 =~ ';' || $1 =~ '`' || $1 =~ '$(' ]] && { echo "Invalid command line"; exit 22; }
-[[ -e $1 || ! $1 =~ ':' ]] && exec vim \"$1\"
+[[ -e $1 || ! $1 =~ ':' ]] && exec vim "$1"
 
 if [[ $1 =~ ':' ]]; then
   echo "Found ':'"

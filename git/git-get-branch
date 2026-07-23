@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage()
 {
-  echo "$Usage: $PGM [options] [remote] <branch>"
+  echo "Usage: $(basename $0) [options] [remote] <branch>"
   echo "Where OPTIONS:"
   echo "  -v : verbose output"
   echo "  -h : this help text"
@@ -19,9 +19,9 @@ do
 done
 shift $((OPTIND-1))
 
-[[ 0 -ne $RC ]] && { echo "FATAL: Does not appear to be a directory using git"; exit $RC; }
 git rev-parse --show-toplevel &> /dev/null
 RC=$?
+[[ 0 -ne $RC ]] && { echo "FATAL: Does not appear to be a directory using git"; exit $RC; }
 
 case $# in
   1) REMOTE=origin; BRANCH=$1 ;;

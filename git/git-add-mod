@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage()
 {
-  echo "$(basename $0) [OPTIONS]"
+  echo "$(basename $0) [OPTIONS] [.]"
   echo "Where:"
   echo "  -n : dryrun; do not execute, show commands only"
   echo "  -v : verbose"
@@ -21,16 +21,18 @@ do
 done
 shift $((OPTIND-1))
 
+unset DIR_NAME
+[[ 1 -eq $# && '.' == $1 ]] && { DIR_NAME='.'; shift; }
 [[ 0 -ne $# ]] && { echo "Invalid command line"; exit 22; }
 
 # get the the status of the files from git
-mapfile -t STATUS < <(git status --porcelain)
+mapfile -t STATUS < <(git status --porcelain $DIR_NAME)
 
 # filter out the modified files that have not already been added
 NAMS=()
 for ITM in "${STATUS[@]}"; do
   if [[ "M" == "${ITM:1:1}" ]]; then   # 2nd char is 'M' : file changed since index
-    NAMS+=($(echo $ITM | awk '{print $NF}'))
+    NAMS+=("$(echo "$ITM" | awk '{print $NF}')")
   fi
 done
 

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+usage()
+{
+  PGM=$(basename $0)
+  echo "Usage: $PGM [OPTS] [dir]"
+  echo "Show broken symlinks in a directory (default: current dir)"
+  echo "Where OPTS:"
+  echo "  -R : remove broken symlinks"
+  echo "  -v : verbose mode"
+  echo "  -h : this help text"
+}
+
+unset REMOVE VERBOSE
+while getopts Rvh OPT
+do
+  case "$OPT" in
+    R) REMOVE=1 ;;
+    v) VERBOSE=1 ;;
+    h) usage; exit ;;
+    *) echo "Invalid argument: '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+WHERE=${1:-.}
+
+[[ -d ${WHERE} ]] || { echo "Not a directory: ${WHERE}"; exit 22; }
+
+COUNT=0
+while IFS= read -r -d '' LINK; do
+  COUNT=$((COUNT + 1))
+  TARGET=$(readlink "${LINK}")
+  if [[ -n ${REMOVE} ]]; then
+    rm "${LINK}"
+    [[ -n ${VERBOSE} ]] && echo "removed: ${LINK} -> ${TARGET}"
+  else
+    echo "${LINK} -> ${TARGET}"
+  fi
+done < <(find "${WHERE}" -type l ! -exec test -e {} \; -print0)
+
+[[ -n ${REMOVE} ]] && echo "Removed ${COUNT} broken symlink(s)" || echo "Found ${COUNT} broken symlink(s)"

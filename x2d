@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 [[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
 

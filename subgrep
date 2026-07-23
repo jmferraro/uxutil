@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage()
 {
@@ -8,23 +8,24 @@ usage()
   echo "  -c     : match c/cpp source files (default all or [files])"
   echo "  -d dir : specify directory to search (default: .)"
   echo "  -i     : ignore case"
+  echo "  -l     : only print files with matches"
   echo "  -v     : verbose mode"
   echo "  -h     : this help text"
 }
 
 PATS=()
 WHERE=.
-unset VERBOSE OPT_I
-while getopts :cd:ivh OPT
+unset VERBOSE OPT_I OPT_L
+while getopts cd:ilvh OPT
 do
   case "$OPT" in
     c) PATS=("*.{c,cpp,h}") ;;
     d) WHERE=$OPTARG ;;
     i) OPT_I="-i" ;;
+    l) OPT_L="-l" ;;
     v) VERBOSE=1 ;;
     h) usage; exit ;;
-    :) echo "Missing argument for '-$OPTARG'"; exit 22 ;;
-    *) echo "Unknown argument: '-$OPTARG'"; exit 22 ;;
+    *) exit 22 ;;
   esac
 done
 shift $((OPTIND-1))
@@ -39,9 +40,9 @@ fi
 
 if [[ ${#PATS[@]} -gt 0 ]]; then
   [[ -n $VERBOSE ]] && set -x
-  exec rgrep $OPT_I "$WHERE" "$1" "${PATS[@]}"
+  exec rgrep $OPT_I $OPT_L "$WHERE" "$1" "${PATS[@]}"
 else
   [[ -n $VERBOSE ]] && set -x
-  exec rgrep $OPT_I "$1" "$WHERE" "${@:2}"
+  exec rgrep $OPT_I $OPT_L "$WHERE" "$1" "${@:2}"
 fi
 

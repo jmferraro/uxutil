@@ -6,9 +6,18 @@ Some of these are grouped by the sub-directory for the group of functions they p
 
 ## Utilities:
 
-### d2x
-*d2x \<num1\> \[num2\] ...*
-<br>Takes a list of input decimal values and converts to hexadecimal (opposite of *x2d*)
+### bash-trace
+*bash-trace \<script\> \[args\]*
+<br>Run the specified bash *script* under the trace option (*bash -x*), printing each line as it executes.  The trace prefix is configured to show the source file, line number, and function name of each traced command.
+
+### cleandup
+*cleandup \[options\] \[dir1 dir2\]*
+<br>Delete files from *dir2* that are identical to files in *dir1*, recursing by default and removing any *dir2* directories that become empty.  A file that is a hard link to its *dir1* counterpart is left alone, so the only copy is never removed.  With no directories given, *dir1* defaults to the parent directory (*..*) and *dir2* to the current directory (with recursion disabled).
+Notable options: *-n* dry run (show what would be deleted), *-B* delete both copies, *-R* do not recurse, *--no_hdr* ignore RCS *$Header*/*$Id* lines when comparing, and *-v* verbose.
+
+### cleandup.rb
+*cleandup.rb \[options\] \[dir1 dir2\]*
+<br>A Ruby implementation of *cleandup* with the same options and behavior, for environments where Ruby is preferred or available.  See *cleandup* (the portable Perl version) for details.
 
 ### cmp-dirs
 *cmp-dirs \[-v\] \[-x\] \<dir1\> \<dir2\>
@@ -22,6 +31,10 @@ Specifying *-x* will produce extended output
 
 NOTE: This command can be linked as *diff-dirs* or *meld-dirs*
 If invoked as either of those names, it will invoke either *tkdiff* or *meld* on each of the differing files
+
+### d2x
+*d2x \<num1\> \[num2\] ...*
+<br>Takes a list of input decimal values and converts to hexadecimal (opposite of *x2d*)
 
 ### dumppath
 *dumppath \[env var\]*
@@ -80,9 +93,17 @@ $ filediff -v foo bar
 *findcmd \<string\>*
 <br>Search the PATH for an executable file, the name of which contains the specified string
 
+### grepdoc
+*grepdoc \<pattern\> \[file ...\]*
+<br>Grep the text of word-processor documents (`.doc`, `.docx`, `.odt`) for the specified *pattern*.  With no files given, it defaults to `*.doc` in the current directory.  Zip-based formats (`.docx`/`.odt`) are read directly; plain `.doc` files are converted with *textutil*, which must be installed.
+
 ### greplist
 *greplist \<string\> \<filelist(s)\>*
 <br>Will run the grep command, using the specified *string* on each of the files in the specified *filelist\(s\)
+
+### gt-title
+*gt-title \<title\>*
+<br>Set the title of the current terminal window to the specified *title* (using the terminal's title escape sequence).
 
 ### hashcat
 *hashcat \[-c\] \[-m\] \[-w|W\] \<file\>*
@@ -176,6 +197,12 @@ By inserting *sponge * in the pipeline, the contents of the foo are converted as
 If *file(s)* are specified, search only those files matching the files/globs specified.
 If *-c* is specified, search only *cpp*, *c*, and *h* files
 if -d* is specified , use the specified directory as the starting point for the search
+
+### symlinks
+*symlinks \[-R\] \[-v\] \[dir\]*
+<br>List the broken (dangling) symlinks found in the specified directory (default: the current directory).
+Specifying *-R* will remove the broken symlinks instead of listing them.
+Specifying *-v* enables verbose output.
 
 ### timestamp
 *timestamp \-h\] \[-n\] \[-q\] \[-c\] \[-k\] \[-s\] \[file(s)\]*

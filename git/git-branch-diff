@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# compare file diffs bwteen branches
+
+usage()
+{
+  PGM=$(basename $0)
+  echo "Usage: $PGM [OPTIONS] <branch1> <branch2> -- <file1> [file2...]"
+  echo "Where OPTIONS:"
+  echo "  -s : show the differences"
+  echo "  -v : increase verbosity (more for more verbose)"
+  echo "  -h : this help text"
+}
+
+unset SHOW
+VERBOSE=0
+while getopts svh- OPT; do
+  case $OPT in
+    s) SHOW=1 ;;
+    v) ((VERBOSE++)) ;;
+    h) usage; exit 0 ;;
+    -) break ;;
+    *) exit 22;
+  esac
+done
+shift $((OPTIND-1))
+
+# must be at least 4 arguments; $3 must be --
+[[ $# -lt 4 ]] && { echo "Invalid command line"; exit 22; }
+[[ "--" != $3 ]] && { echo "Invalid command line"; exit 33; }
+
+BRANCH1=$1
+BRANCH2=$2
+shift 3
+
+TOTL=0
+SAME=0
+DIFF=0
+MISS=0
+# remaining arguments are files
+while [[ $# -gt 0 ]]; do
+  ((TOTL++))
+  FILEPATH=$1
+  shift
+  unset HAS1 HAS2
+  [[ $VERBOSE -gt 0 ]] && echo Checking: $FILEPATH
+  git show $BRANCH1:$FILEPATH >/dev/null 2>&1 && HAS1=1
+  git show $BRANCH2:$FILEPATH >/dev/null 2>&1 && HAS2=1
+  [[ -z $HAS1 ]] && echo "$FILEPATH is missing from $BRANCH1"
+  [[ -z $HAS2 ]] && echo "$FILEPATH is missing from $BRANCH2"
+  [[ -z $HAS1 || -z $HAS2 ]] && { ((MISS++)); continue; }  # no need to compare hashes
+  [[ $VERBOSE -gt 0 ]] && echo "$FILEPATH exists in both branches"
+  HASH1=$(git rev-parse $BRANCH1:$FILEPATH)
+  HASH2=$(git rev-parse $BRANCH2:$FILEPATH)
+  if [[ $HASH1 != $HASH2 ]]; then
+    echo "$FILEPATH has differing hashes"
+    ((DIFF++))
+    [[ -n $SHOW ]] && git difftool $BRANCH1 $BRANCH2 -- $FILEPATH
+  else
+    ((SAME++))
+    if [[ $VERBOSE -gt 0 ]]; then
+      echo -n "$FILEPATH has the same hash in both branches"
+      [[ $VERBOSE -gt 1 ]] && echo ": $HASH1" || echo ""
+    fi
+  fi
+done
+
+echo "Total file count: $TOTL"
+echo "  Identical:      $SAME"
+echo "  Differ:         $DIFF"
+echo "  Missing:        $MISS"
+

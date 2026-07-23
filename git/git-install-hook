@@ -1,53 +1,78 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# get directory for script, look for hooks sub-dir, look for pre-commit script
-THIS_DIR=$(dirname $BASH_SOURCE[0])
+# Install git hooks from ~/uxutil/git/hooks/ into the current repo's
+# .git/hooks/ via symlink.
+#
+# Usage:
+#   git-install-hook                # installs every executable hook found in hooks/
+#   git-install-hook pre-push       # installs only the named hook
+#   git-install-hook <hook-name>    # installs any specific hook present in hooks/
+
+# get directory for script, look for hooks sub-dir
+THIS_DIR=$(dirname ${BASH_SOURCE[0]})
 HOOK_DIR=${THIS_DIR}/hooks
 [[ ! -d $HOOK_DIR ]] && { echo "HOOK_DIR: ${HOOK_DIR} does not exist"; exit 2; }
 
-# SRC_BIN should be in hooks dir under dir with this script
-SRC_BIN=${HOOK_DIR}/pre-commit
-[[ -e $SRC_BIN ]] && SRC_BIN=$(realpath $SRC_BIN)
-[[ ! -e $SRC_BIN ]] && { echo "${SRC_BIN} does not exist"; exit 2; }
-[[ ! -r $SRC_BIN ]] && { echo "${SRC_BIN} is not readable"; exit 2; }
-[[ ! -x $SRC_BIN ]] && { echo "${SRC_BIN} is not executable"; exit 2; }
-
-# set up destination
+# resolve destination .git/hooks once (shared by all hooks installed in this run)
 ROOT_PATH=$(git rev-parse --show-cdup)
 RC=$?
 [[ 0 -ne $RC ]] && exit $RC
-
-# look for destination
 [[ -z $ROOT_PATH ]] && ROOT_PATH=$(pwd)   # in case current dir is .git dir
 DEST_DIR=${ROOT_PATH}/.git/hooks
 [[ ! -d $DEST_DIR ]] && { echo "Unable to find destination hook directory: ${DEST_DIR}"; exit 2; }
-DEST_BIN=${DEST_DIR}/pre-commit
 
-# source and dest set; copy/link the script
-if [[ -e $DEST_BIN ]]; then
-  if [[ -L $DEST_BIN ]]; then # it's a symbolic link
-    LINK=(readlink ${DEST_BIN})
-    [[ -z ${LINK} ]] && { echo "FATAL error: unable to readlink ${DEST_BIN}"; exit 5; }
-    if [[ ${LINK} != ${SRC_BIN} ]]; then
-      echo "Replacing existing symlink"
-      ln -fs ${SRC_BIN} ${DEST_BIN}
+# install_hook <hook-name>
+#   symlinks ${HOOK_DIR}/<hook-name> → ${DEST_DIR}/<hook-name>
+install_hook() {
+  local HOOK_NAME="$1"
+  local SRC_BIN=${HOOK_DIR}/${HOOK_NAME}
+  [[ -e $SRC_BIN ]] && SRC_BIN=$(realpath $SRC_BIN)
+  [[ ! -e $SRC_BIN ]] && { echo "${SRC_BIN} does not exist"; return 2; }
+  [[ ! -r $SRC_BIN ]] && { echo "${SRC_BIN} is not readable"; return 2; }
+  [[ ! -x $SRC_BIN ]] && { echo "${SRC_BIN} is not executable"; return 2; }
+
+  local DEST_BIN=${DEST_DIR}/${HOOK_NAME}
+
+  if [[ -e $DEST_BIN ]]; then
+    if [[ -L $DEST_BIN ]]; then # it's a symbolic link
+      local LINK=$(readlink ${DEST_BIN})
+      [[ -z ${LINK} ]] && { echo "FATAL error: unable to readlink ${DEST_BIN}"; return 5; }
+      if [[ ${LINK} != ${SRC_BIN} ]]; then
+        echo "Replacing existing ${HOOK_NAME} symlink"
+        ln -fs ${SRC_BIN} ${DEST_BIN}
+      else
+        echo "${HOOK_NAME}-hook already present and correct"
+      fi
     else
-      echo "pre-commit-hook already present and correct"
+      # not a link; replace file with link
+      echo "Replacing existing ${HOOK_NAME} file with symlink"
+      ln -fs ${SRC_BIN} ${DEST_BIN}
     fi
   else
-    # not a link; replace file with link
-    echo "Replacing existing pre-commit file with symlink"
-    ln -fs ${SRC_BIN} ${DEST_BIN}
+    # doesn't exist or link is bad
+    local OPT_F=
+    if [[ -L $DEST_BIN ]]; then
+      echo "Replacing bad ${HOOK_NAME} symlink"
+      OPT_F=-f
+    else
+      echo "Installing new ${HOOK_NAME} hook"
+    fi
+    ln -s $OPT_F ${SRC_BIN} ${DEST_BIN}
   fi
-else
-  # doesn't exist or link is bad
-  unset OPT_F
-  if [[ -L $DEST_BIN ]]; then
-    echo "Replacing bad pre-commit symlink"
-    OPT_F=-f
-  else
-    echo "Installing new pre-commit hook"
-  fi
-  ln -s $OPT_F ${SRC_BIN} ${DEST_BIN}
-fi
+}
 
+if [[ -n "$1" ]]; then
+  # specific hook requested
+  install_hook "$1"
+else
+  # install everything executable in hooks/
+  shopt -s nullglob
+  found=0
+  for hook in ${HOOK_DIR}/*; do
+    [[ -f $hook && -x $hook ]] || continue
+    install_hook "$(basename ${hook})"
+    found=1
+  done
+  [[ 0 -eq $found ]] && { echo "No executable hooks found in ${HOOK_DIR}"; exit 2; }
+fi
+exit 0

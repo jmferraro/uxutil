@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 usage()
 {
@@ -34,8 +34,11 @@ if [[ -d $F2 ]]; then
 fi
 
 NAMES="$F1 and $F2"
-I1=$(stat -c "%d-%i" $F1)
-I2=$(stat -c "%d-%i" $F2)
+# Linux uses -c, mac uses -f for the same functionality
+# detect by capability since GNU coreutils may be installed on macOS
+stat -c "%d" /dev/null &>/dev/null && STAT_FLG=-c || STAT_FLG=-f
+I1=$(stat $STAT_FLG "%d-%i" "$F1")
+I2=$(stat $STAT_FLG "%d-%i" "$F2")
 [[ $I1 == $I2 ]] && { echo "Files ${NAMES} have the same device/inode"; exit; }
 
 diff $QUIET $F1 $F2 2>/dev/null
