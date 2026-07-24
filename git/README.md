@@ -4,6 +4,8 @@ Utilities I've developed specifically for git.  As with the general utilities ab
 
 Most follow the `git-<command>` convention, so with the *git/* directory in your *PATH* they can be run either directly (e.g. *git-who*) or as a git subcommand (e.g. *git who*).
 
+Git hooks (and their rule-extension mechanism) are documented in [*hooks/*](hooks/README.md).
+
 ## Utilities:
 
 ### compare_branch_merge.sh

@@ -1,0 +1,34 @@
+# Example pre-commit rules file.
+#
+# The pre-commit hook sources this file if you point it at one:
+#     git config --global hooks.precommitRules ~/.config/git/pre-commit-rules
+#
+# Keep the real file OUTSIDE any repo so the same rules apply everywhere and it
+# can never be committed.  It is SOURCED by the hook (not run as a hook), so it
+# can extend or make exceptions to the base rules.  Uncomment/adapt what you need.
+
+# 1. Add project-specific banned patterns to the base FAIL_REGEX:
+# FAIL_REGEX+=("\bWIP\b")
+# FAIL_REGEX+=("\bdebugger\b")
+
+# 2. Skip whole files.  Return 0 (true) to skip.  Typical use: exempt
+#    vendored / upstream-mirrored trees whose style you do not control.
+# hook_skip_file() {
+#   local FN="$1"
+#   [[ "$FN" =~ ^vendor/ || "$FN" =~ ^third_party/ ]]
+# }
+
+# 3. Make an exception to ONE base rule for certain files.  Args are the
+#    regex being applied and the filename; return 0 (true) to skip that
+#    rule for that file.  Example: allow NULL in generated .inc files.
+# hook_skip_regex() {
+#   local RE="$1" FN="$2"
+#   [[ "$RE" == '\bNULL\b' && "$FN" =~ \.inc$ ]]
+# }
+
+# 4. Add extra per-file checks.  Args are the filename and its full path;
+#    echo one line per failure (each line counts as one failure).
+# hook_extra_check() {
+#   local FN="$1" FULLPATH="$2"
+#   grep -qn 'console\.log' "$FULLPATH" && echo "$FN contains console.log"
+# }

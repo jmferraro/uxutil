@@ -1,18 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # put in .git/hooks
 
 echo "Running pre-commit-hook..."
 
 RET=0
-FAIL_WORDS=()                 # all words have been changed to REGEX
 FAIL_REGEX=()
 FAIL_REGEX+=("\bFIXME\b")     # items marked as FIXME should be fixed before being committed
 FAIL_REGEX+=("\bNOCOMMIT\b")  # explicit DO NOT COMMIT flag
-FAIL_REGEX+=("\bXXX\n")       # another flag to stop commits
-FAIL_REGEX+=("^<<<<<<<\s*$")  # merge conflict remnant
-FAIL_REGEX+=("^=======\s*$")  # merge conflict remnant
-FAIL_REGEX+=("^>>>>>>>\s*$")  # merge conflict remnant
-FAIL_REGEX+=("\bNULL\b")      # all NULL should now be nullptr
+FAIL_REGEX+=("\bXXX\b")       # another flag to stop commits
+FAIL_REGEX+=("^<<<<<<<")      # merge conflict marker (matches '<<<<<<< HEAD')
+FAIL_REGEX+=("^=======$")     # merge conflict divider (bare 7 '=')
+FAIL_REGEX+=("^>>>>>>>")      # merge conflict marker (matches '>>>>>>> branch')
+FAIL_REGEX+=("\bNULL\b")      # all NULL should now be nullptr (C++ only, see below)
 
 ROOT_PATH=$(git rev-parse --show-cdup)
 [[ -z ${ROOT_PATH} ]] && ROOT_PATH=./
@@ -26,34 +25,77 @@ FILES=($(git diff ${CACHED} --name-status | awk '/^[^DR]/ { print $2 }'))
 FILES+=($(git diff ${CACHED} --name-status | awk '/^R[0-9]+/ { print $3 }'))
 DEL_FILES+=($(git diff ${CACHED} --name-status | awk '/^D/ { print $2 }'))
 
+# Reject symlinks: cross-project tools live outside the repo and are
+# accessed via untracked, locally-created symlinks (so the same source
+# can be edited in one place and used from many checkouts).  Tracking a
+# symlink defeats this and creates confusing local copies.  Mode 120000
+# in --raw output is the symlink type; column 2 is the NEW mode, so
+# this catches additions and modifications and ignores deletions.
+SYMLINK_FILES=($(git diff ${CACHED} --raw | awk '$2 == "120000" { print $NF }'))
+for FN in "${SYMLINK_FILES[@]}"; do
+  echo "$FN is a symlink (not allowed in this repo)"
+  RET=$((RET+1))
+done
+
+# --- optional rule extensions --------------------------------------------
+# Keep this hook generic: per-project or per-firm rules live in an optional
+# extension file that is sourced here (if present and readable).  A sourced
+# extension has full access to this script and may:
+#   * add banned patterns:       FAIL_REGEX+=("\bWIP\b")
+#   * skip whole files:          hook_skip_file()   { [[ "$1" =~ ^vendor/ ]]; }
+#   * except one rule per file:  hook_skip_regex()  { [[ "$1" == '\bNULL\b' && "$2" =~ \.inc$ ]]; }
+#   * add extra per-file checks: hook_extra_check() { grep -q BADAPI "$2" && echo "$1 uses BADAPI"; }
+# hook_skip_* return 0 (true) to skip; hook_extra_check echoes one line per
+# failure.
+#
+# The extension file's path is set via git config:
+#   git config hooks.precommitRules <path>
+# Set it `--global` once to cover every repo, or per-repo to override.  Point
+# it at a file OUTSIDE any repo (e.g. ~/.config/git/pre-commit-rules) so one
+# file is shared everywhere and can never be accidentally committed.
+# See pre-commit-rules.example for a template.
+EXT=$(git config --get hooks.precommitRules 2>/dev/null)
+# shellcheck source=/dev/null
+[[ -n $EXT && -r $EXT ]] && source "$EXT"
+
 # loop over all the files
 for FN in "${FILES[@]}"; do
   [[ -d "$FN" ]] && { echo "Skipping directory: ${FN}"; continue; }
   [[ "$FN" =~ \.xz$ ]] && { echo "Skipping .xz file: ${FN}"; continue; }
-  for WD in "${FAIL_WORDS[@]}"; do
-    if fgrep -q "$WD" ${ROOT_PATH}${FN}; then
-    echo "$FN contains $WD"
-    RET=$((RET+1))
-    fi
-  done
-  # again, using regex fail list
+  # project-specific whole-file skips (see rule extensions above)
+  if declare -F hook_skip_file >/dev/null && hook_skip_file "$FN"; then
+    echo "Skipping (project rule): ${FN}"; continue
+  fi
   for RE in "${FAIL_REGEX[@]}"; do
-    if grep -q -E "${RE}" ${ROOT_PATH}${FN}; then
+    # Skip NULL check for .c, .h, and .md files (NULL is valid in C, use nullptr in C++)
+    if [[ "$RE" == '\bNULL\b' && "$FN" =~ \.(c|h|md)$ ]]; then
+      continue
+    fi
+    # project-specific per-rule exceptions (see rule extensions above)
+    declare -F hook_skip_regex >/dev/null && hook_skip_regex "$RE" "$FN" && continue
+    if grep -q -E "${RE}" "${ROOT_PATH}${FN}"; then
       echo "$FN contains $RE"
       RET=$((RET+1))
     fi
   done
-  # check for trailing whitespace
-  if grep -q -E '\s+$' ${ROOT_PATH}${FN}; then
+  # check for trailing whitespace (skip markdown files - they need trailing spaces for line breaks)
+  if [[ ! "$FN" =~ \.md$ ]] && grep -q -E '[[:space:]]+$' "${ROOT_PATH}${FN}"; then
     echo "$FN has trailing whitespace"
     RET=$((RET+1))
   fi
-  # check for tabs
-  if grep -q -P '\t' ${ROOT_PATH}${FN}; then
-    if [[ "Makefile" != $FN ]]; then
+  # check for tabs (use bash $'\t' expansion so BSD grep on macOS works
+  # too — BSD grep has no -P flag, only GNU grep does)
+  if grep -q $'\t' "${ROOT_PATH}${FN}"; then
+    if [[ ! "$FN" =~ (^|/)Makefile$ && ! "$FN" =~ \.mk$ && ! "$FN" =~ \.go$ && ! "$FN" =~ (^|/)go\.(mod|sum|work)$ ]]; then
       echo "$FN has TAB characters"
       RET=$((RET+1))
     fi
+  fi
+  # project-specific extra checks (one echoed line per failure)
+  if declare -F hook_extra_check >/dev/null; then
+    while IFS= read -r MSG; do
+      [[ -n $MSG ]] && { echo "$MSG"; RET=$((RET+1)); }
+    done < <(hook_extra_check "$FN" "${ROOT_PATH}${FN}")
   fi
 done
 
@@ -79,7 +121,7 @@ fi
 if [[ ! -e ${ROOT_PATH}/.gitnorestrict ]]; then
   # get the name of the default branch from the remote repo
 
-  BRNAM=$(git remote show origin | grep 'HEAD' | cut -d':' -f2 | sed -e 's/^ *//g' -e 's/ *$//g' 2>/dev/null)
+  BRNAM=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
   RC=$?
 
   # should not be committing to the 'main' or 'master' branch
@@ -103,4 +145,3 @@ if [[ ! -e ${ROOT_PATH}/.gitnorestrict ]]; then
 fi
 
 exit $RET
-

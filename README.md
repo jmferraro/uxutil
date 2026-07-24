@@ -2,7 +2,7 @@
 
 A collection of open source utilities and file I've developed over the years.  I use many of them daily.  Some are quick implementations of utilities provided by other (installable) packages that I might not be able to access at wherever I might be working (e.g. *sponge*)
 
-Some of these are grouped by the sub-directory for the group of functions they provide.
+Some of these are grouped by the sub-directory for the group of functions they provide; git-specific utilities are documented in [*git/*](git/README.md).
 
 ## Utilities:
 
