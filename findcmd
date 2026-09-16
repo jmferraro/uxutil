@@ -4,8 +4,8 @@ matchit()
 {
   local POSMAT
   unset POSMAT
-  [[ $(basename $1 | grep -i "$2") ]] && POSMAT=$1
-  [[ -x $POSMAT ]] && echo $POSMAT
+  [[ $(basename "$1" | grep -i "$2") ]] && POSMAT=$1
+  [[ -x $POSMAT ]] && echo "$POSMAT"
 }
 
 if [[ 1 != $# ]]; then
@@ -14,7 +14,7 @@ if [[ 1 != $# ]]; then
   exit 22
 fi
 
-PARTS=(${PATH//:/ })
+IFS=: read -ra PARTS <<< "$PATH"
 for LOC in "${PARTS[@]}"; do
   [[ -d "$LOC" ]] && find "$LOC" | while IFS= read -r file; do matchit "$file" "$1"; done
 done

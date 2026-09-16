@@ -4,7 +4,7 @@
 
 CMD_DIR=$1
 [[ ! -d $CMD_DIR ]] && { echo "Directory not found: $CMD_DIR"; exit 2; }
-cd $CMD_DIR
+cd "$CMD_DIR" || exit 2
 export PATH=$PATH:.
 shift
 

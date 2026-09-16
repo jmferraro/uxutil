@@ -6,9 +6,9 @@
 
 if [[ $1 =~ ':' ]]; then
   echo "Found ':'"
-  CN=$(echo $1 | cut -f3 -d':')
-  LN=$(echo $1 | cut -f2 -d':')
-  FN=$(echo $1 | cut -f1 -d':')
+  CN=$(echo "$1" | cut -f3 -d':')
+  LN=$(echo "$1" | cut -f2 -d':')
+  FN=$(echo "$1" | cut -f1 -d':')
   # force LN and CN to9 be numeric
   LN=$((LN+0))
   CN=$((CN+0))
@@ -22,7 +22,7 @@ if [[ $1 =~ ':' ]]; then
       CMD+=("+$LN")
     fi
   fi
-  CMD+=($FN)
+  CMD+=("$FN")
 
   exec "${CMD[@]}"
 fi

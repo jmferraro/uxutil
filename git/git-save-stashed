@@ -7,10 +7,10 @@ RC=$?
 [[ -z $ROOT_DIR ]] && ROOT_DIR=.
 cd ./$ROOT_DIR
 
-# is there a stash?
-LIST=($(git stash list 2>/dev/null))
-RC=$?
-[[ $RC -ne 0 ]] && { echo "There does not appear to be any stashes"; exit $RC; }
+# is there a stash?  git stash list exits 0 even when there are none, so ask
+# for the ref itself: refs/stash exists only while at least one stash does
+git rev-parse --verify --quiet refs/stash > /dev/null ||
+  { echo "There does not appear to be any stashes"; exit 1; }
 
 # Collect stashed changes as "STATUS<TAB>path" pairs.  Using --name-status
 # (instead of --name-only) lets us distinguish deletions — `git show

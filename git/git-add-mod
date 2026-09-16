@@ -22,7 +22,7 @@ done
 shift $((OPTIND-1))
 
 unset DIR_NAME
-[[ 1 -eq $# && '.' == $1 ]] && { DIR_NAME='.'; shift; }
+[[ 1 -eq $# && '.' == "$1" ]] && { DIR_NAME='.'; shift; }
 [[ 0 -ne $# ]] && { echo "Invalid command line"; exit 22; }
 
 # get the the status of the files from git

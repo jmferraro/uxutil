@@ -76,7 +76,7 @@ DIR2=$2
 [[ ! -d $DIR2 ]] && { echo "ERROR: the specified directoey does not exist: $DIR2"; exit 2; }
 
 # get the differences
-RESULTS=$(comm  --output-delimiter='|'\
+mapfile -t RESULTS < <(comm  --output-delimiter='|'\
   <(find "$DIR1" -maxdepth 1 -type f -exec basename {} \; | sort)\
   <(find "$DIR2" -maxdepth 1 -type f -exec basename {} \; | sort))
 
@@ -86,10 +86,10 @@ RONLY=0
 TOTAL=0
 SAME=0
 BOTH=()
-for LN in ${RESULTS[@]}; do
-  if [[ "|" == ${LN:0:1} ]]; then
-    if [[ "|" == ${LN:1:1} ]]; then
-      BOTH+=(${LN:2})
+for LN in "${RESULTS[@]}"; do
+  if [[ "|" == "${LN:0:1}" ]]; then
+    if [[ "|" == "${LN:1:1}" ]]; then
+      BOTH+=("${LN:2}")
     else
       RONLY=$((RONLY+1))
     fi

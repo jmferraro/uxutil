@@ -26,7 +26,7 @@ shift $((OPTIND-1))
 
 # must be at least 4 arguments; $3 must be --
 [[ $# -lt 4 ]] && { echo "Invalid command line"; exit 22; }
-[[ "--" != $3 ]] && { echo "Invalid command line"; exit 33; }
+[[ "--" != "$3" ]] && { echo "Invalid command line"; exit 33; }
 
 BRANCH1=$1
 BRANCH2=$2

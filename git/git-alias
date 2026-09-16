@@ -23,8 +23,8 @@ if [[ "$1" == "--local" || "$1" == "--global" ]]; then
 fi
 
 # look for help
-for ARG in "${1+$@}"; do
-  if [[ "-h" == $ARG || "--help" == $ARG ]]; then
+for ARG in "$@"; do
+  if [[ "-h" == "$ARG" || "--help" == "$ARG" ]]; then
     usage
     exit
   fi

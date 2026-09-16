@@ -20,10 +20,12 @@ CACHED="--cached"
 [[ "--all" == "$1" ]] && unset CACHED
 
 # get a list of the files to be committed: exclude Deleted and Renamed
-FILES=($(git diff ${CACHED} --name-status | awk '/^[^DR]/ { print $2 }'))
+# --name-status columns are tab-separated: -F'\t' keeps a path containing
+# spaces whole, and mapfile splits on newlines only (and never globs)
+mapfile -t FILES < <(git diff ${CACHED} --name-status | awk -F'\t' '/^[^DR]/ { print $2 }')
 # add Renamed (new name)
-FILES+=($(git diff ${CACHED} --name-status | awk '/^R[0-9]+/ { print $3 }'))
-DEL_FILES+=($(git diff ${CACHED} --name-status | awk '/^D/ { print $2 }'))
+mapfile -t RENAMED < <(git diff ${CACHED} --name-status | awk -F'\t' '/^R[0-9]+/ { print $3 }')
+FILES+=("${RENAMED[@]}")
 
 # Reject symlinks: cross-project tools live outside the repo and are
 # accessed via untracked, locally-created symlinks (so the same source
@@ -31,7 +33,7 @@ DEL_FILES+=($(git diff ${CACHED} --name-status | awk '/^D/ { print $2 }'))
 # symlink defeats this and creates confusing local copies.  Mode 120000
 # in --raw output is the symlink type; column 2 is the NEW mode, so
 # this catches additions and modifications and ignores deletions.
-SYMLINK_FILES=($(git diff ${CACHED} --raw | awk '$2 == "120000" { print $NF }'))
+mapfile -t SYMLINK_FILES < <(git diff ${CACHED} --raw | awk -F'\t' '{ split($1, MODE, " ") } MODE[2] == "120000" { print $NF }')
 for FN in "${SYMLINK_FILES[@]}"; do
   echo "$FN is a symlink (not allowed in this repo)"
   RET=$((RET+1))
@@ -103,8 +105,8 @@ if [[ "--all" != "$1" ]]; then
   # check both mod & cached
   # if the file is both ccached (staged) and modified, this is likely an ovesight
   # the contents ofthe modifed file will be checked, but the version staged will be committed
-  MODLIST=($(git diff --name-status | awk '$1 != "D" { print $2 }'))
-  BOTH=($(comm -12 <(for FN in "${FILES[@]}"; do echo "${FN}"; done|sort) <(for FN in "${MODLIST[@]}"; do echo "${FN}"; done|sort)))
+  mapfile -t MODLIST < <(git diff --name-status | awk -F'\t' '$1 != "D" { print $2 }')
+  mapfile -t BOTH < <(comm -12 <(for FN in "${FILES[@]}"; do echo "${FN}"; done|sort) <(for FN in "${MODLIST[@]}"; do echo "${FN}"; done|sort))
   for FN in "${BOTH[@]}"; do
     echo "$FN is both staged and modified"
     RET=$((RET+1))
