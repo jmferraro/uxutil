@@ -1,3 +1,91 @@
 #!/usr/bin/env bash
+
+# The title is set with the XTerm OSC 0 sequence, which is honored by nearly
+# every graphical terminal emulator (gnome-terminal, mate-terminal, xterm,
+# konsole, xfce4-terminal, terminator, tilix, alacritty, kitty, wezterm, foot,
+# iTerm2, Terminal.app, PuTTY, Windows Terminal, ...).  The environments that
+# ignore it are detected below and reported.
+
+usage()
+{
+  echo "Usage: $(basename "$0") [-h] [-q] <title>"
+  echo "Where:"
+  echo "  -q : do not warn when the terminal ignores title changes"
+  echo "  -h : this help text"
+}
+
+# name the terminal emulator we are running under: the variables the emulators
+# export are the most reliable source, falling back to the process tree
+emulator()
+{
+  [[ -n ${GNOME_TERMINAL_SCREEN}${GNOME_TERMINAL_SERVICE} ]] && { echo "gnome-terminal"; return; }
+  [[ -n ${KONSOLE_VERSION} ]] && { echo "konsole"; return; }
+  [[ -n ${KITTY_WINDOW_ID} ]] && { echo "kitty"; return; }
+  [[ -n ${ALACRITTY_WINDOW_ID}${ALACRITTY_SOCKET} ]] && { echo "alacritty"; return; }
+  [[ -n ${TERMINATOR_UUID} ]] && { echo "terminator"; return; }
+  [[ -n ${TILIX_ID} ]] && { echo "tilix"; return; }
+  [[ -n ${WT_SESSION} ]] && { echo "windows-terminal"; return; }
+  [[ -n ${TERM_PROGRAM} ]] && { echo "${TERM_PROGRAM}"; return; }
+  [[ -n ${VTE_VERSION} ]] && { echo "VTE-based terminal"; return; }
+
+  # env vars do not survive ssh: the real terminal is on the far end
+  [[ -n ${SSH_TTY} ]] && { echo "terminal on the far end of ssh"; return; }
+
+  local PID=${PPID} COMM
+  while [[ -n ${PID} && ${PID} -gt 1 ]]; do
+    COMM=$(basename "$(ps -o comm= -p "${PID}" 2>/dev/null)")
+    [[ -z ${COMM} ]] && break
+    case ${COMM} in
+      sshd) echo "terminal on the far end of ssh"; return ;;
+      *term*|konsole|alacritty|kitty|foot|contour|st|Terminal|iTerm2)
+        echo "${COMM}"; return ;;
+    esac
+    PID=$(ps -o ppid= -p "${PID}" 2>/dev/null | tr -d '[:space:]')
+  done
+  echo "unknown terminal"
+}
+
+# report why the title sequence will not reach a window title, nothing if it will
+ignored()
+{
+  [[ -z ${ISTTY} ]] && { echo "output is not a terminal"; return; }
+
+  case ${TERM} in
+    ""|dumb|unknown|linux|console|cons25|vt[0-9]*)
+      echo "TERM=${TERM:-<unset>} has no window title"; return ;;
+  esac
+
+  [[ -n ${INSIDE_EMACS} ]] && { echo "emacs shell buffers have no window title"; return; }
+
+  # the kernel virtual consoles have no window to title
+  [[ $(tty 2>/dev/null) == /dev/tty[0-9]* ]] && { echo "virtual consoles have no window title"; return; }
+
+  # screen and tmux swallow the sequence: it renames their own window/pane and
+  # only reaches the real terminal when they are told to forward it
+  [[ -n ${STY} ]] && { echo "screen renames its window; the terminal title changes only if screen forwards it"; return; }
+  if [[ -n ${TMUX} ]]; then
+    [[ $(tmux show-options -gv set-titles 2>/dev/null) == "on" ]] && return
+    echo "tmux renames the pane only; 'tmux set -g set-titles on' retitles the terminal"
+  fi
+}
+
+unset OPT_Q
+while getopts hq OPT; do
+  case ${OPT} in
+    q) OPT_Q=1 ;;
+    h) usage; exit ;;
+    *) exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+
 [[ 1 -ne $# ]] && { echo "Invalid command line"; exit 22; }
-echo -ne "\e]0;$@\007"
+
+# stdout is a pipe inside the command substitution below: test the real one here
+unset ISTTY
+[[ -t 1 ]] && ISTTY=1
+
+WHY=$(ignored)
+[[ -n ${WHY} && -z ${OPT_Q} ]] && echo "WARNING: no effect: $(emulator): ${WHY}" >&2
+
+echo -ne "\e]0;$1\007"

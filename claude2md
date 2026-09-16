@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+# claude2md [-a] [-l] [-d dir] [-s pattern] <file.json>
+# Convert claude.ai conversation JSON into readable markdown transcripts.
+#
+# Accepts either form of input:
+#   conversations.json  from Settings > Privacy > Export data  (a JSON array)
+#   a single conversation fetched by misc/claude-fetch.js      (a JSON object)
+#
+# With -d, writes one <date>-<title>-<uuid8>.md per conversation into dir.
+# Without -d, writes the transcript(s) to stdout.
+#
+# Requires jq.  Exit: 0 = wrote something, 1 = nothing matched, 22 = usage error.
+
+usage()
+{
+  echo "Usage: $(basename "$0") [-a] [-l] [-d dir] [-s pattern] <file.json>"
+  echo "  Convert claude.ai conversation JSON to markdown."
+  echo "  -a         : include thinking and tool_use/tool_result blocks"
+  echo "  -d dir     : write one .md per conversation into dir (default: stdout)"
+  echo "  -l         : list conversations (num, date, messages, title); write nothing"
+  echo "  -s pattern : only conversations whose title matches pattern (regex, -i)"
+  echo "  -h         : this help"
+}
+
+type -p jq &> /dev/null || { echo "ERROR: jq is required" >&2; exit 22; }
+
+unset ALL DIR LIST PAT
+while getopts :ad:ls:h OPT; do
+  case ${OPT} in
+    a) ALL=1 ;;
+    d) DIR=$OPTARG ;;
+    l) LIST=1 ;;
+    s) PAT=$OPTARG ;;
+    h) usage; exit 0 ;;
+    *) echo "ERROR: unknown option: '-$OPTARG'" >&2; exit 22 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+[[ $# != 1 ]] && { usage; exit 22; }
+[[ -r $1 ]] || { echo "ERROR: cannot read: $1" >&2; exit 22; }
+[[ -n ${DIR} && ! -d ${DIR} ]] && { echo "ERROR: not a directory: ${DIR}" >&2; exit 22; }
+
+FILE=$1
+jq -e type "${FILE}" &> /dev/null || { echo "ERROR: not valid JSON: ${FILE}" >&2; exit 22; }
+
+IFS= read -r -d '' JQPROG <<'ENDJQ'
+def slug:
+  (. // "") | ascii_downcase | gsub("[^a-z0-9]+"; "-")
+  | gsub("^-+"; "") | gsub("-+$"; "") | .[0:60]
+  | if length == 0 then "untitled" else . end;
+
+def stamp: (. // "") | .[0:19] | sub("T"; " ");
+
+def who:
+  (.sender // .role // "unknown")
+  | if . == "human" or . == "user" then "User"
+    elif . == "assistant" then "Claude"
+    else . end;
+
+def quote: split("\n") | map("> " + .) | join("\n");
+
+def fence($lang; $body): "```" + $lang + "\n" + $body + "\n```";
+
+# One content block.  Anything but plain text is emitted only under -a; unknown
+# block types are dumped raw rather than dropped, since new ones do turn up.
+def block($all):
+  if .type == "text" then (.text // "")
+  elif .type == "thinking" then
+    (if $all then "**[thinking]**\n\n" + ((.thinking // "") | quote) else empty end)
+  elif .type == "tool_use" then
+    (if $all then "**[tool_use: " + (.name // "?") + "]**\n\n"
+                  + fence("json"; ((.input // {}) | tojson)) else empty end)
+  elif .type == "tool_result" then
+    (if $all then "**[tool_result: " + (.name // "?") + "]**\n\n"
+                  + fence("json"; ((.content // []) | tojson)) else empty end)
+  else
+    (if $all then "**[" + (.type // "unknown") + "]**\n\n" + fence("json"; tojson)
+     else empty end)
+  end;
+
+# Attachment and generated-file BODIES are absent from the official export, so
+# name them: the note is the only record that something is missing.
+def refs:
+  [ ((.attachments // [])[] | .file_name // empty),
+    ((.files_v2   // [])[] | .file_name // empty) ]
+  | if length == 0 then "" else "\n\n*files: " + join(", ") + "*" end;
+
+# A message may carry BOTH a top-level .text and a content[] of thinking/tool
+# blocks; fall back to .text only when content[] holds no text block of its own.
+def message($all):
+  . as $m
+  | ([ (.content // [])[] | block($all) ] | map(select(. != null and . != ""))) as $parts
+  | (($m.content // []) | map(select(.type == "text")) | length) as $ntext
+  | (if $ntext == 0 and (($m.text // "") | length) > 0
+     then $parts + [$m.text] else $parts end
+     | join("\n\n")) as $body
+  | "## " + ($m | who) + "\n*" + ($m.created_at | stamp) + "*\n\n"
+    + (if ($body | length) > 0 then $body else "*(no renderable content)*" end)
+    + ($m | refs);
+
+# tree=True fetches return the whole DAG, including abandoned edit/regen
+# branches, so walk the leaf back to the root.  The official export drops
+# parent_message_uuid, in which case fall back to chronological order.
+def thread:
+  . as $c
+  | (($c.chat_messages // []) | map(select(.uuid != null)))              as $msgs
+  | ($msgs | INDEX(.uuid))                                               as $by
+  | (($msgs | map(select((.parent_message_uuid // "") != "")) | length) > 0) as $branched
+  | if $branched and ($c.current_leaf_message_uuid != null)
+       and ($by[$c.current_leaf_message_uuid] != null)
+    then [ $c.current_leaf_message_uuid | recurse($by[.].parent_message_uuid // empty) ]
+         | reverse | map($by[.]) | map(select(. != null))
+    else $msgs | sort_by(.created_at // "")
+    end;
+
+def header:
+  "# " + (.name // "(untitled)") + "\n\n"
+  + "- uuid: `" + (.uuid // "?") + "`\n"
+  + "- created: " + (.created_at | stamp) + "\n"
+  + "- updated: " + (.updated_at | stamp) + "\n"
+  + (if (.model // null) != null then "- model: " + (.model | tostring) + "\n" else "" end)
+  + "- messages: " + ((.chat_messages // []) | length | tostring) + "\n";
+
+def document($all):
+  header + "\n---\n\n"
+  + ([ thread[] | message($all) ] | join("\n\n---\n\n")) + "\n";
+
+def fname:
+  ((.created_at // "0000-00-00") | .[0:10]) + "-"
+  + ((.name // "untitled") | slug) + "-"
+  + ((.uuid // "0000000000") | .[0:8]) + ".md";
+
+(if type == "array" then . else [.] end)
+| map(select(.chat_messages != null))
+| map(select($pat == "" or ((.name // "") | test($pat; "i"))))
+| sort_by(.created_at // "")
+| if $mode == "list" then
+    to_entries[]
+    | "\(.key + 1)\t\((.value.created_at // "") | .[0:10])\t\((.value.chat_messages // []) | length)\t\(.value.name // "(untitled)")"
+  elif $mode == "files" then
+    .[] | fname + "\u0000" + document($all) + "\u0000"
+  else
+    .[] | document($all)
+  end
+ENDJQ
+
+MODE=stdout
+[[ -n ${DIR} ]] && MODE=files
+[[ -n ${LIST} ]] && MODE=list
+
+# every mode shares one pass, so a 100MB+ export is parsed exactly once
+jqrun() { jq "$@" --argjson all "${ALL:-null}" --arg pat "${PAT-}" --arg mode "${MODE}" "${JQPROG}" "${FILE}"; }
+
+if [[ ${MODE} != files ]]; then
+  OUT=$(jqrun -r) || exit 22
+  [[ -n ${OUT} ]] || { echo "No conversations matched." >&2; exit 1; }
+  printf '%s\n' "${OUT}"
+  exit 0
+fi
+
+# NUL-delimited name/body pairs keep arbitrary markdown intact across the pipe
+COUNT=0
+while IFS= read -r -d '' NAME && IFS= read -r -d '' BODY; do
+  printf '%s' "${BODY}" > "${DIR}/${NAME}" || exit 22
+  COUNT=$((COUNT + 1))
+done < <(jqrun -j)
+
+[[ ${COUNT} == 0 ]] && { echo "No conversations matched." >&2; exit 1; }
+echo "Wrote ${COUNT} transcript(s) to ${DIR}"

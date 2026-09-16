@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# grep-all [-d dir] [-n fileglob] <word1> [word2 ...]
+# List files that contain ALL of the given words (fixed-string, case-insensitive).
+# Prints only filenames, not the matching text.
+#   -d dir      : directory to search        (default: current directory)
+#   -n fileglob : find -iname pattern         (default: all files, like find)
+# Exit: 0 = one or more files matched, 1 = none matched, 22 = usage error.
+#
+# Equivalent to the hand pipeline:
+#   find <dir> -type f [-iname '<glob>'] -print0 \
+#     | xargs -0 grep -FilZ w1 | ... | xargs -0 grep -Fil wN
+
+usage()
+{
+  echo "Usage: $(basename "$0") [-d dir] [-n fileglob] <word> [word ...]"
+  echo "  List files containing ALL words (fgrep -i); only names are printed."
+  echo "  -d dir      : directory to search   (default: current directory)"
+  echo "  -n fileglob : find -iname pattern   (default: all files); quote it"
+}
+
+unset DIR NAME
+while getopts hd:n: OPT; do
+  case ${OPT} in
+    d) DIR=$OPTARG ;;
+    n) NAME=$OPTARG ;;
+    h) usage; exit 0 ;;
+    *) exit 22 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+[[ $# -lt 1 ]] && { usage; exit 22; }
+[[ -n ${DIR} && ! -d ${DIR} ]] && { echo "Not a directory: ${DIR}" >&2; exit 22; }
+
+# single-quote a string safely for eval
+shq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
+# default is find's default: no -iname clause -> all files
+PIPE="find $(shq "${DIR:-.}") -type f"
+[[ -n ${NAME+x} ]] && PIPE="$PIPE -iname $(shq "$NAME")"
+PIPE="$PIPE -print0 2>/dev/null"
+
+NWORDS=$#
+IDX=0
+for WORD in "$@"; do
+  IDX=$((IDX + 1))
+  # -Z keeps names NUL-delimited between stages; final stage prints a plain list
+  [[ $IDX -lt $NWORDS ]] \
+    && PIPE="$PIPE | xargs -0 -r grep -F -i -l -Z -e $(shq "$WORD")" \
+    || PIPE="$PIPE | xargs -0 -r grep -F -i -l -e $(shq "$WORD")"
+done
+
+# capture so the exit status reflects "any match", not xargs' per-batch status
+OUT=$(eval "$PIPE")
+[[ -n ${OUT} ]] || exit 1
+printf '%s\n' "${OUT}"
