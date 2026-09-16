@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+
+PGM=$(basename "$0")
+# Resolve $0 through any symlinks, so the helper in misc/ beside the real
+# script is found even when invoked via a link in e.g. ~/bin.  readlink -f is
+# not portable (macOS had no -f until 12), so walk the chain by hand.
+SELF=$0
+LINKS=0
+while [[ -L $SELF && $LINKS -lt 40 ]]
+do
+  TARGET=$(readlink "$SELF" 2>/dev/null) || break
+  case $TARGET in
+    /*) SELF=$TARGET ;;
+    *)  SELF=$(dirname -- "$SELF")/$TARGET ;;
+  esac
+  LINKS=$((LINKS+1))
+done
+UXDIR=$(CDPATH='' cd -- "$(dirname -- "$SELF")" 2>/dev/null && pwd)
+
+if [[ -r $UXDIR/misc/uxbrace.sh ]]; then
+  . "$UXDIR/misc/uxbrace.sh"
+else
+  echo "$PGM: unable to find required misc/uxbrace.sh" >&2
+  exit 127
+fi
+
+usage()
+{
+  echo "Usage: $PGM [-i] [-l] [-f|-e] [-n|v] [-h] <path> <pattern> [filepat]..."
+  echo "WHERE:"
+  echo " -e : pattern is an extended regular expression (ERE)"
+  echo " -f : pattern is an fixed string"
+  echo " -i : Ignore case"
+  echo " -l : print only names of files containing matches "
+  echo " -n : print 1-based line number with each output line"
+  echo " -v : invert match; select non-matching lines "
+  echo " -h : this help text"
+}
+
+# has_print0 / has_exec_plus probe how this system can hand a file list to
+# grep.  Probing up front is deliberate: once a pipeline has started emitting
+# output there is no clean way to fall back to another form.
+has_print0()
+{
+  find /dev/null -print0 > /dev/null 2>&1 &&
+    printf 'x\0' | xargs -0 true > /dev/null 2>&1
+}
+
+has_exec_plus()
+{
+  find /dev/null -exec true {} + > /dev/null 2>&1
+}
+
+unset OPT_E OPT_F OPT_N OPT_V
+GREP_OPT=()
+while getopts :efilnvh opt
+do
+  case "$opt" in
+    e) GREP_OPT+=(-E); OPT_E=1 ;;
+    f) GREP_OPT+=(-F); OPT_F=1 ;;
+    i) GREP_OPT+=(-i) ;;
+    l) GREP_OPT+=(-l) ;;
+    n) GREP_OPT+=(-n); OPT_N=1 ;;
+    v) GREP_OPT+=(-v); OPT_V=1 ;;
+    h) usage; exit ;;
+    *) echo "FATAL: Unknown option '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+[[ $((OPT_E+OPT_F)) -gt 1 ]] && { echo "Conflicting options: -e and -f"; exit 22; }
+[[ $((OPT_N+OPT_V)) -gt 1 ]] && { echo "Conflicting options: -n and -v"; exit 22; }
+[[ $# -lt 2 ]] && { echo "Invalid command line"; exit 22; }
+
+if ! command -v find > /dev/null 2>&1; then
+  echo "$PGM: unable to find required find command" >&2
+  exit 127
+fi
+
+readonly WHERE=$1
+shift
+readonly SRCH=$1
+shift
+
+if [[ ! -e $WHERE ]]; then
+  echo "$PGM: $WHERE: No such file or directory" >&2
+  exit 2
+fi
+
+# Turn the remaining args into plain -name predicates: ( -name A -o -name B )
+PATS=()
+while [[ $# -ne 0 ]]
+do
+  while IFS= read -r GLOB
+  do
+    PATS+=("$GLOB")
+  done < <(expand_braces "$1")
+  shift
+done
+
+FIND_PRED=()
+if [[ ${#PATS[@]} -gt 0 ]]; then
+  FIND_PRED+=( '(' )
+  NUM=0
+  for GLOB in "${PATS[@]}"
+  do
+    [[ $NUM -gt 0 ]] && FIND_PRED+=( -o )
+    FIND_PRED+=( -name "$GLOB" )
+    NUM=$((NUM+1))
+  done
+  FIND_PRED+=( ')' )
+fi
+
+# /dev/null keeps grep printing the filename prefix even when a batch holds a
+# single file; that is what the GNU-only -H used to do.
+#
+# awk normalises the exit status to grep's convention (0 found, 1 not found).
+# Neither xargs (123) nor find (always 0) reports it usefully.
+if has_print0; then
+  find "$WHERE" -type f "${FIND_PRED[@]}" -print0 |
+    xargs -0 grep "${GREP_OPT[@]}" -e "$SRCH" /dev/null
+elif has_exec_plus; then
+  find "$WHERE" -type f "${FIND_PRED[@]}" \
+    -exec grep "${GREP_OPT[@]}" -e "$SRCH" /dev/null {} +
+else
+  find "$WHERE" -type f "${FIND_PRED[@]}" \
+    -exec grep "${GREP_OPT[@]}" -e "$SRCH" /dev/null {} \;
+fi | awk '{ FOUND=1; print } END { exit !FOUND }'

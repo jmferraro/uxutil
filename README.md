@@ -2,13 +2,26 @@
 
 A collection of open source utilities and file I've developed over the years.  I use many of them daily.  Some are quick implementations of utilities provided by other (installable) packages that I might not be able to access at wherever I might be working (e.g. *sponge*)
 
-Some of these are grouped by the sub-directory for the group of functions they provide; git-specific utilities are documented in [*git/*](git/README.md).
+Some of these are grouped by the sub-directory for the group of functions they provide; git-specific utilities are documented in [*git/*](git/README.md), and the helper files that are not commands in their own right (a sourced library, a browser snippet, reference scripts) in [*misc/*](misc/README.md).
 
 ## Utilities:
 
 ### bash-trace
 *bash-trace \<script\> \[args\]*
 <br>Run the specified bash *script* under the trace option (*bash -x*), printing each line as it executes.  The trace prefix is configured to show the source file, line number, and function name of each traced command.
+
+### claude2md
+*claude2md \[-a\] \[-l\] \[-d dir\] \[-s pattern\] \<file.json\>*
+<br>Convert *claude.ai* conversation JSON into readable markdown transcripts.  Accepts either a whole-account *conversations.json* (a JSON array) or a single conversation (a JSON object); with *-d* it writes one *&lt;date&gt;-&lt;title&gt;-&lt;uuid8&gt;.md* per conversation, otherwise it writes to stdout.
+Notable options: *-a* include thinking and tool_use/tool_result blocks (default is message text only), *-l* list conversations without writing, and *-s* restrict to titles matching a case-insensitive regex.  Requires *jq*.
+
+Saving a long conversation from the browser does not work — *claude.ai* virtualises the message list, so *Save Page As* and *Print* only capture the turns currently mounted in the DOM.  The full transcript arrives in a single JSON request, so there are two ways to get at it:
+
+* **Whole account:** *Settings &rarr; Privacy &rarr; Export data*.  The emailed download link **expires 24 hours after delivery**, there is no published SLA on generation time, and deleted conversations are not included.  Unzip and run *claude2md* over *conversations.json*.
+* **One conversation:** paste [*misc/claude-fetch.js*](misc/claude-fetch.js) into the browser console on the open chat.  A same-origin *fetch* sends the session cookie automatically, so nothing is extracted or stored and no public */share/* link is created.  It downloads JSON for *claude2md*.
+
+Note that neither route carries the *bytes* of uploaded attachments or of files generated in-session — only references.  *claude2md* lists their filenames under each message so the gap is at least visible.  A conversation fetched with *tree=True* contains abandoned edit/regenerate branches; *claude2md* walks *current_leaf_message_uuid* back to the root to emit only the live thread, falling back to chronological order for exports (which drop the parent links).
+Very large exports are read into memory by *jq* in one pass; a multi-hundred-MB *conversations.json* may need more RAM than a small machine has.
 
 ### cleandup
 *cleandup \[options\] \[dir1 dir2\]*
@@ -93,6 +106,10 @@ $ filediff -v foo bar
 *findcmd \<string\>*
 <br>Search the PATH for an executable file, the name of which contains the specified string
 
+### grep-all
+*grep-all \[-d dir\] \[-n fileglob\] \<word\> \[word ...\]*
+<br>List the files that contain **all** of the given *words*.  The search starts at *-d dir* (default: the current directory) and, by default, considers every file; give *-n fileglob* to restrict to names matching a `find -iname` pattern (e.g. `-n '*.txt'` -- quote it).  Matching is fixed-string and case-insensitive (*fgrep -i*), and only the file names are printed, not the matching text.  At least one *word* is required, and a *word* may itself contain spaces to match a phrase.  Exit status is 0 if any file matched, 1 if none, 22 for a usage error.
+
 ### grepdoc
 *grepdoc \<pattern\> \[file ...\]*
 <br>Grep the text of word-processor documents (`.doc`, `.docx`, `.odt`) for the specified *pattern*.  With no files given, it defaults to `*.doc` in the current directory.  Zip-based formats (`.docx`/`.odt`) are read directly; plain `.doc` files are converted with *textutil*, which must be installed.
@@ -102,8 +119,11 @@ $ filediff -v foo bar
 <br>Will run the grep command, using the specified *string* on each of the files in the specified *filelist\(s\)
 
 ### gt-title
-*gt-title \<title\>*
-<br>Set the title of the current terminal window to the specified *title* (using the terminal's title escape sequence).
+*gt-title \[-q\] \<title\>*
+<br>Set the title of the current terminal window to the specified *title*, using the XTerm *OSC 0* escape sequence.
+That sequence is honored by nearly every graphical terminal emulator, not just *gnome-terminal*: *mate-terminal*, *xterm*, *konsole*, *xfce4-terminal*, *terminator*, *tilix*, *alacritty*, *kitty*, *wezterm*, *foot*, *iTerm2*, *Terminal.app*, *PuTTY* and *Windows Terminal* all accept it.
+Where it cannot work -- a Linux virtual console, *TERM* set to *dumb*/*linux*/*vt100*, an *emacs* shell buffer, output that is not a terminal, or inside *screen*/*tmux* when they are not configured to pass the title through -- the terminal is identified and a warning explaining why is written to stderr.
+Specify *-q* to suppress that warning (useful when calling it from *PROMPT_COMMAND*).
 
 ### hashcat
 *hashcat \[-c\] \[-m\] \[-w|W\] \<file\>*
@@ -156,21 +176,6 @@ Specifying *-E* will only show the file in the editor if it already exists.
 ### psef
 Run the *ps* command searching the output for the specified argument(s) (ignoring the *psef* command itself, preserving the header line from the output)
 
-### rgrep
-Perform a recursive grep (fgrep, grep, or egrep) starting with the specified location using the specified options.
-```
-$ rgrep -h
-Usage: rgrep [-i] [-l] [-f|-e] [-n|v] [-h] <path> <pattern> [filepat]...
-WHERE:
- -e : pattern is an extended regular expression (ERE)
- -f : pattern is an fixed string
- -i : ignore case
- -l : print only names of files containing matches
- -n : print 1-based line number with each output line
- -v : invert match; select non-matching lines
- -h : this help text
-```
-
 ### sep
 *sep \[-C\] \[-count|/\]* \[char\]*
 <br>The default behavior is to fill the screen (all rows and columns) with a dash in bold white/
@@ -197,6 +202,8 @@ By inserting *sponge * in the pipeline, the contents of the foo are converted as
 If *file(s)* are specified, search only those files matching the files/globs specified.
 If *-c* is specified, search only *cpp*, *c*, and *h* files
 if -d* is specified , use the specified directory as the starting point for the search
+<br>Files/globs may use brace alternation, e.g. *\*.{c,cpp,h}*.
+<br>Uses the system *grep -r* when it supports *--include*, and falls back to *uxrgrep* when it does not; both produce the same output and the same exit status.
 
 ### symlinks
 *symlinks \[-R\] \[-v\] \[dir\]*
@@ -218,6 +225,28 @@ if file(s) will be renamed to append the timestamp unless the *-k* option is spe
 <br>Read from standard input and write to standard output and files (like *tee*).  After execution, if the output is larger than the screen size, it will display the output in less.
 If no file is specified, the command will create a temporary file to capture (and display) the output.  If created, the temporary file will be deleted once the command completes.
 <br>(The name comes from: 'Tee OR Less')
+
+### uxrgrep
+Perform a recursive grep (fgrep, grep, or egrep) starting with the specified location using the specified options.
+<br>Formerly *rgrep*, renamed because GNU grep now ships an *rgrep* of its own that takes its arguments in the opposite order (*rgrep pattern \[file...\]* versus *uxrgrep \<path\> \<pattern\> \[filepat\]...*), and whose *-e*, *-f* and *-h* options mean different things.
+Whichever came first on *PATH* silently won, so the two now have distinct names.
+```
+$ uxrgrep -h
+Usage: uxrgrep [-i] [-l] [-f|-e] [-n|v] [-h] <path> <pattern> [filepat]...
+WHERE:
+ -e : pattern is an extended regular expression (ERE)
+ -f : pattern is an fixed string
+ -i : ignore case
+ -l : print only names of files containing matches
+ -n : print 1-based line number with each output line
+ -v : invert match; select non-matching lines
+ -h : this help text
+```
+Each *filepat* may use brace alternation, e.g. *\*.{c,cpp,h}*; nested and repeated groups are supported.
+<br>Needs only *find* and a plain non-recursive *grep*, so it still works where *grep* has no *-r* option.
+It prefers *find -print0 | xargs -0*, falling back to *find -exec ... +* and then *find -exec ... \;* on systems lacking those.
+<br>Sources *misc/uxbrace.sh*, located relative to the real (symlink-resolved) script directory.
+<br>Exit status is 0 if any match was printed, 1 if none (a match found only inside a binary file is reported on stderr and does not count), 2 if *path* does not exist, and 22 for a usage error.
 
 ### vimln
 Given an input of source:line or source:line:column, will start vim and position the cursor at the specified location.

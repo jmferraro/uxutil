@@ -16,9 +16,9 @@ usage()
 
 fatal()
 {
-  local RED="\e[1;31m"
-  local NRM="\e[0m"
-  echo -e "${RED}ERROR: $1${NRM}"
+  local RED="\033[1;31m"
+  local NRM="\033[0m"
+  printf '%bERROR: %s%b\n' "${RED}" "$1" "${NRM}"
   exit 22
 }
 

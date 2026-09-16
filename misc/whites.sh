@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
-# compare-whites.sh — show how different "white" codes render in your terminal.
+# whites.sh — show how different "white" codes render in your terminal.
 
-RESET='\e[0m'
-BGBLACK='\e[40m'   # force a consistent dark background for the samples
+RESET='\033[0m'
+BGBLACK='\033[40m'   # force a consistent dark background for the samples
 
 print_sample () {
   local label="$1"
-  local code="$2"        # e.g. '\e[97m'
+  local code="$2"        # e.g. '\033[97m'
   # Show the label, the literal escape sequence, and a colored block
-  printf "%-22s %-16s " "$label" "$code"
+  printf "%-22s %-24s " "$label" "$code"
   # Apply the color on a black background for contrast
-  printf "%b%b%s%b\n" "$BGBLACK" "$(echo -e "$code")" "  █████ WHITE █████  " "$RESET"
+  printf "%b%b%s%b\n" "$BGBLACK" "$code" "  █████ WHITE █████  " "$RESET"
 }
 
 echo "How your terminal renders different whites (foreground on black bg):"
 echo
 
-print_sample "Base white"            '\e[37m'
-print_sample "Bold + white"          '\e[1;37m'
-print_sample "Bright white (97)"     '\e[97m'
-print_sample "256-color white (15)"  '\e[38;5;15m'
-print_sample "256-color white (231)" '\e[38;5;231m'
-print_sample "Truecolor white"       '\e[38;2;255;255;255m'
+print_sample "Base white"            '\033[37m'
+print_sample "Bold + white"          '\033[1;37m'
+print_sample "Bright white (97)"     '\033[97m'
+print_sample "256-color white (15)"  '\033[38;5;15m'
+print_sample "256-color white (231)" '\033[38;5;231m'
+print_sample "Truecolor white"       '\033[38;2;255;255;255m'
 
 echo
 echo "Notes:"

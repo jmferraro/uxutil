@@ -17,13 +17,13 @@ This is a collection of personal shell utilities and configuration files develop
 
 ### Core Pipeline Utilities
 - **torl**: "Tee OR Less" - captures command output and displays in less if output is large
-- **rgrep**: Recursive grep with enhanced pattern matching, supports glob patterns with braces
+- **uxrgrep**: Recursive grep with enhanced pattern matching, supports glob patterns with braces (formerly `rgrep`; renamed to avoid the GNU `rgrep`, which has an incompatible argument order)
 - **sponge**: Bash implementation of the sponge command for safe in-place file editing
 
 ### File Comparison and Search
 - **cmp-dirs**: Compare directories recursively, can invoke tkdiff/meld for differences
 - **ffind**: Find files by pattern, excludes 'install' directories by default
-- **subgrep**: Search all subdirectories for strings with optional file filtering
+- **subgrep**: Search all subdirectories for strings with optional file filtering; uses `grep -r` where available, else falls back to `uxrgrep`
 
 ### Time and Data Utilities
 - **i2time**: Convert epoch timestamps to human-readable format with unit detection

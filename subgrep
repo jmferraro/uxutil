@@ -1,8 +1,31 @@
 #!/usr/bin/env bash
 
+PGM=$(basename "$0")
+# Resolve $0 through any symlinks, so the helper in misc/ beside the real
+# script is found even when invoked via a link in e.g. ~/bin.  readlink -f is
+# not portable (macOS had no -f until 12), so walk the chain by hand.
+SELF=$0
+LINKS=0
+while [[ -L $SELF && $LINKS -lt 40 ]]
+do
+  TARGET=$(readlink "$SELF" 2>/dev/null) || break
+  case $TARGET in
+    /*) SELF=$TARGET ;;
+    *)  SELF=$(dirname -- "$SELF")/$TARGET ;;
+  esac
+  LINKS=$((LINKS+1))
+done
+UXDIR=$(CDPATH='' cd -- "$(dirname -- "$SELF")" 2>/dev/null && pwd)
+
+if [[ -r $UXDIR/misc/uxbrace.sh ]]; then
+  . "$UXDIR/misc/uxbrace.sh"
+else
+  echo "$PGM: unable to find required misc/uxbrace.sh" >&2
+  exit 127
+fi
+
 usage()
 {
-  PGM=$(basename $0)
   echo "Usage: $PGM [OPTS] <search> [file[s]]"
   echo "Where OPTS:"
   echo "  -c     : match c/cpp source files (default all or [files])"
@@ -13,13 +36,36 @@ usage()
   echo "  -h     : this help text"
 }
 
+# has_system_rgrep probes whether the system grep can do the whole job itself,
+# i.e. supports both recursive search and --include glob filtering.  Probing up
+# front matters: once a backend has started emitting output we cannot cleanly
+# fall back to another one.
+has_system_rgrep()
+{
+  local ERR RC
+  ERR=$(grep -r --include='*' -e x /dev/null 2>&1 >/dev/null)
+  RC=$?
+  [[ $RC -le 1 && -z $ERR ]]
+}
+
+# find_uxrgrep locates our own recursive grep, preferring the copy sitting
+# beside this script so that PATH order can never select a different one.
+find_uxrgrep()
+{
+  if [[ -x $UXDIR/uxrgrep ]]; then
+    echo "$UXDIR/uxrgrep"
+  elif command -v uxrgrep > /dev/null 2>&1; then
+    command -v uxrgrep
+  fi
+}
+
 PATS=()
 WHERE=.
 unset VERBOSE OPT_I OPT_L
 while getopts cd:ilvh OPT
 do
   case "$OPT" in
-    c) PATS=("*.{c,cpp,h}") ;;
+    c) PATS=("*.c" "*.cpp" "*.h") ;;
     d) WHERE=$OPTARG ;;
     i) OPT_I="-i" ;;
     l) OPT_L="-l" ;;
@@ -32,17 +78,41 @@ shift $((OPTIND-1))
 
 [[ $# -eq 0 ]] && { echo "Nothing specified"; exit 22; }
 
-if ! type -f rgrep > /dev/null 2>&1; then
-  echo "Unable to find required rgrep command"
+SEARCH=$1
+
+# Any trailing args are file globs, filling the same role as -c
+[[ ${#PATS[@]} -eq 0 ]] && PATS=("${@:2}")
+
+# Expand braces here rather than in either backend.  grep --include and find
+# -name both understand only plain globs, so handing either one *.{c,h} would
+# quietly match nothing; expanding up front keeps the two backends equivalent.
+GLOBS=()
+for PAT in "${PATS[@]}"
+do
+  while IFS= read -r GLOB
+  do
+    GLOBS+=("$GLOB")
+  done < <(expand_braces "$PAT")
+done
+
+if has_system_rgrep; then
+  # A recursive grep selects files with --include, not with file operands
+  INCLUDES=()
+  for GLOB in "${GLOBS[@]}"
+  do
+    INCLUDES+=("--include=$GLOB")
+  done
+  [[ -n $VERBOSE ]] && set -x
+  exec grep -r $OPT_I $OPT_L "${INCLUDES[@]}" -e "$SEARCH" -- "$WHERE"
+fi
+
+# No usable system grep -- fall back to our own, which needs only find and a
+# plain non-recursive grep.
+UXRGREP=$(find_uxrgrep)
+if [[ -z $UXRGREP ]]; then
+  echo "Unable to find a usable backend: need 'grep -r' or uxrgrep"
   exit 127
 fi
 
-
-if [[ ${#PATS[@]} -gt 0 ]]; then
-  [[ -n $VERBOSE ]] && set -x
-  exec rgrep $OPT_I $OPT_L "$WHERE" "$1" "${PATS[@]}"
-else
-  [[ -n $VERBOSE ]] && set -x
-  exec rgrep $OPT_I $OPT_L "$WHERE" "$1" "${@:2}"
-fi
-
+[[ -n $VERBOSE ]] && set -x
+exec "$UXRGREP" $OPT_I $OPT_L "$WHERE" "$SEARCH" "${GLOBS[@]}"
