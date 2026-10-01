@@ -67,6 +67,7 @@ $ ffind -h
 Usage: [OPTS] <pattern>
 where OPTS:
   -I      : do *NOT* exclude 'install' dirs
+  -i      : case-insensitive match (uses -iname instead of -name)
   -d dir  : specify directory to search (default current dir)
   -t type : specify the type of entry to seek (default f)
   -h      : this help text

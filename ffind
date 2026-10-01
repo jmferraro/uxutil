@@ -6,6 +6,7 @@ usage()
   echo "Usage: [OPTS] <pattern>"
   echo "where OPTS:"
   echo "  -I      : do *NOT* exclude 'install' dirs"
+  echo "  -i      : case-insensitive match (uses -iname instead of -name)"
   echo "  -d dir  : specify directory to search (default current dir)"
   echo "  -t type : specify the type of entry to seek (default f)"
   echo "  -h      : this help text"
@@ -14,14 +15,14 @@ usage()
 WHERE=.
 TYPE=f
 NO_INC=1
-unset VERBOSE
-while getopts :Id:t:h opt
+NAME_OPT=-name
+while getopts :Iid:t:h opt
 do
   case $opt in
     I) unset NO_INC ;;
+    i) NAME_OPT=-iname ;;
     d) WHERE=$OPTARG ;;
     t) TYPE=$OPTARG ;;
-    v) VERBOSE=1 ;;
     h) usage; exit ;;
     :) echo "Missing argument for '-$OPTARG'"; exit 22 ;;
     *) echo "Invalid argument: '-$OPTARG'"; exit 22 ;;
@@ -32,11 +33,10 @@ shift $((OPTIND-1))
 [[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
 
 while [[ $# -ne 0 ]]; do
-  [[ -n $VERBOSE ]] && echo "Looking for name: $1, type: $TYPE"
   if [[ -n $NO_INC ]]; then
-    find $WHERE -type $TYPE -name "$1" | fgrep -v /install/
+    find $WHERE -type $TYPE $NAME_OPT "$1" | fgrep -v /install/
   else
-    find $WHERE -type $TYPE -name "$1"
+    find $WHERE -type $TYPE $NAME_OPT "$1"
   fi
   shift
 done
