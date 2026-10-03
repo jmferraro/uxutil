@@ -75,9 +75,9 @@ where OPTS:
   -t type : specify the type of entry to seek (default f)
   -h      : this help text
 ```
-The *-I* option is included since many build systems (particularly when building library code) place a copy of the source in an *'install'* directory somwhere in the project tree -- usually parallel to the source.
-This can result in a situation where when looking for source to fix a proble using *ffind*, teh result may be the copy in the 'install' directory.
-Issuing a command like: `vi $(which ffind *file*)` may ersult in editing the install version, which would disappear after the next clean build.
+The *-I* option is included since many build systems (particularly when building library code) place a copy of the source in an *'install'* directory somewhere in the project tree -- usually parallel to the source.
+This can result in a situation where when looking for source to fix a problem using *ffind*, the result may be the copy in the 'install' directory.
+Issuing a command like: `vi $(which ffind *file*)` may result in editing the install version, which would disappear after the next clean build.
 <br>By default *find*'s own error output -- most often *Permission denied* noise, which is common on a Mac even within *$HOME* -- is redirected to */dev/null*; pass *-E* to let those errors through.  The *-w* option saves typing the surrounding wildcards, so *ffind -w foo* searches for *\*foo\**.
 
 ### filediff
@@ -222,9 +222,9 @@ Specifying *-v* enables verbose output.
 
 ### timestamp
 *timestamp \[-h\] \[-n\] \[-q\] \[-c\] \[-k\] \[-s\] \[file(s)\]*
-<br>General tmestamp utility.
-Run by itself, it will print the current timestamp (optionally with nanonsecond precision if *-n* is specified.
-Using the *-q* option alow with one or more files will report the last modified time of each file.
+<br>General timestamp utility.
+Run by itself, it will print the current timestamp (optionally with nanosecond precision if *-n* is specified).
+Using the *-q* option along with one or more files will report the last modified time of each file.
 The utility can also stamp a file by appending a timestamp to its name; this requires the *-s* option.  The default is to use the file's modification time; specifying *-c* (which requires *-s*) uses the current time instead.
 The file is renamed to the stamped name unless *-k* is given, which copies it to the stamped name instead.
 
