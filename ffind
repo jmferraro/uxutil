@@ -7,6 +7,7 @@ usage()
   echo "where OPTS:"
   echo "  -I      : do *NOT* exclude 'install' dirs"
   echo "  -i      : case-insensitive match (uses -iname instead of -name)"
+  echo "  -w      : wildcard - wrap each pattern in '*...*' (ffind -w foo => '*foo*')"
   echo "  -d dir  : specify directory to search (default current dir)"
   echo "  -t type : specify the type of entry to seek (default f)"
   echo "  -h      : this help text"
@@ -16,11 +17,13 @@ WHERE=.
 TYPE=f
 NO_INC=1
 NAME_OPT=-name
-while getopts :Iid:t:h opt
+unset WILDCARD
+while getopts :Iiwd:t:h opt
 do
   case $opt in
     I) unset NO_INC ;;
     i) NAME_OPT=-iname ;;
+    w) WILDCARD=1 ;;
     d) WHERE=$OPTARG ;;
     t) TYPE=$OPTARG ;;
     h) usage; exit ;;
@@ -33,10 +36,12 @@ shift $((OPTIND-1))
 [[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
 
 while [[ $# -ne 0 ]]; do
+  PATTERN=$1
+  [[ -n $WILDCARD ]] && PATTERN="*$1*"
   if [[ -n $NO_INC ]]; then
-    find $WHERE -type $TYPE $NAME_OPT "$1" | fgrep -v /install/
+    find $WHERE -type $TYPE $NAME_OPT "$PATTERN" | fgrep -v /install/
   else
-    find $WHERE -type $TYPE $NAME_OPT "$1"
+    find $WHERE -type $TYPE $NAME_OPT "$PATTERN"
   fi
   shift
 done
