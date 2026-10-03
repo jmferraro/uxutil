@@ -33,12 +33,13 @@ Notable options: *-n* dry run (show what would be deleted), *-B* delete both cop
 <br>A Ruby implementation of *cleandup* with the same options and behavior, for environments where Ruby is preferred or available.  See *cleandup* (the portable Perl version) for details.
 
 ### cmp-dirs
-*cmp-dirs \[-v\] \[-x\] \<dir1\> \<dir2\>
+*cmp-dirs \[-p pgm\] \[-v\] \[-x\] \<dir1\> \<dir2\>*
 <br>Compare all the files in specified directories, indicating differences in the files:
 * IDENTICAL
 * SAME DEVICE/INODE
 * DIFFERS
 
+Specifying *-p pgm* uses *pgm* to display the differences of files that differ (default: *cmp*, which only reports that they differ without showing them).
 Specifying *-v* will produce more verbose output
 Specifying *-x* will produce extended output
 
@@ -61,13 +62,15 @@ $ dumppath
 ```
 
 ### ffind
-<br>Search the all in all subdirectories for specified file
+<br>Search all subdirectories for a file matching the specified pattern.
 ```
 $ ffind -h
 Usage: [OPTS] <pattern>
 where OPTS:
   -I      : do *NOT* exclude 'install' dirs
   -i      : case-insensitive match (uses -iname instead of -name)
+  -w      : wildcard - wrap each pattern in '*...*' (ffind -w foo => '*foo*')
+  -E      : do *NOT* redirect find's stderr to /dev/null (show errors)
   -d dir  : specify directory to search (default current dir)
   -t type : specify the type of entry to seek (default f)
   -h      : this help text
@@ -75,6 +78,7 @@ where OPTS:
 The *-I* option is included since many build systems (particularly when building library code) place a copy of the source in an *'install'* directory somwhere in the project tree -- usually parallel to the source.
 This can result in a situation where when looking for source to fix a proble using *ffind*, teh result may be the copy in the 'install' directory.
 Issuing a command like: `vi $(which ffind *file*)` may ersult in editing the install version, which would disappear after the next clean build.
+<br>By default *find*'s own error output -- most often *Permission denied* noise, which is common on a Mac even within *$HOME* -- is redirected to */dev/null*; pass *-E* to let those errors through.  The *-w* option saves typing the surrounding wildcards, so *ffind -w foo* searches for *\*foo\**.
 
 ### filediff
 *filediff \[-v\] \<file1\> \<dir|file2\>*
@@ -160,12 +164,12 @@ OPTIONS:
   -k : keep the output file from the make command
   -- : remaining arguments will not be considered options
 ```
-NOTE: This command is superceded by the use of *torl*.  Instead of running `jmake`, simply run `make | torl`.
-There are more characters to type but using *torl* is more flexible since it can work with any build system. not just *make*
-(e.g. *ninja* -- `ninja | torl`)
+NOTE: This command is superceded by the use of *torl*.  Instead of running `jmake`, simply run `torl make`.
+There are more characters to type but using *torl* is more flexible since it can work with any build system, not just *make*
+(e.g. *ninja* -- `torl ninja`)
 
 ### notes
-*notes \[-e|E\] \<string\>*
+*notes \[-e|E\] \[-l\] \<string\>*
 <br>Run without an argument will produce a list of all notes found
 If an argument is found, will:
 * search the a note with the specified name
@@ -173,6 +177,7 @@ If an argument is found, will:
 
 If specified with the option '*-e* option, the matching note will be displayed in the editor (and created if it does not exist)
 Specifying *-E* will only show the file in the editor if it already exists.
+Specifying *-l* pages the notes through *less* instead of printing them with *cat*.
 
 ### psef
 Run the *ps* command searching the output for the specified argument(s) (ignoring the *psef* command itself, preserving the header line from the output)
@@ -198,11 +203,14 @@ The first command (commented) would cause *foo* to be empty.
 By inserting *sponge * in the pipeline, the contents of the foo are converted as expected
 
 ### subgrep
-*subgrep \[-c\] \[-d dir\] string \[file\(s\)\]*
+*subgrep \[-c\] \[-i\] \[-l\] \[-v\] \[-d dir\] string \[file\(s\)\]*
 <br>Search the all files in all subdirectories for the specified string.
 If *file(s)* are specified, search only those files matching the files/globs specified.
-If *-c* is specified, search only *cpp*, *c*, and *h* files
-if -d* is specified , use the specified directory as the starting point for the search
+If *-c* is specified, search only *cpp*, *c*, and *h* files.
+If *-i* is specified, matching is case-insensitive.
+If *-l* is specified, print only the names of files containing matches.
+If *-v* is specified, enable verbose output.
+If *-d* is specified, use the specified directory as the starting point for the search.
 <br>Files/globs may use brace alternation, e.g. *\*.{c,cpp,h}*.
 <br>Uses the system *grep -r* when it supports *--include*, and falls back to *uxrgrep* when it does not; both produce the same output and the same exit status.
 
@@ -213,18 +221,19 @@ Specifying *-R* will remove the broken symlinks instead of listing them.
 Specifying *-v* enables verbose output.
 
 ### timestamp
-*timestamp \-h\] \[-n\] \[-q\] \[-c\] \[-k\] \[-s\] \[file(s)\]*
+*timestamp \[-h\] \[-n\] \[-q\] \[-c\] \[-k\] \[-s\] \[file(s)\]*
 <br>General tmestamp utility.
 Run by itself, it will print the current timestamp (optionally with nanonsecond precision if *-n* is specified.
 Using the *-q* option alow with one or more files will report the last modified time of each file.
-The utility can also be used to mark the file with a timestamp.  The default behavior is to use the modifification time of the file.
-Specifying *-c* will override this behavior, using the current timestamp instead.
-if file(s) will be renamed to append the timestamp unless the *-k* option is specified, which will result in creating a copy of the file instead.
+The utility can also stamp a file by appending a timestamp to its name; this requires the *-s* option.  The default is to use the file's modification time; specifying *-c* (which requires *-s*) uses the current time instead.
+The file is renamed to the stamped name unless *-k* is given, which copies it to the stamped name instead.
 
 ### torl
-*torl \[filename\]*
-<br>Read from standard input and write to standard output and files (like *tee*).  After execution, if the output is larger than the screen size, it will display the output in less.
-If no file is specified, the command will create a temporary file to capture (and display) the output.  If created, the temporary file will be deleted once the command completes.
+*torl \[-A\] \[-o file\] \<command\> \[args...\]*
+<br>Run *command* (passed **as arguments**, not through a pipe), capturing its combined stdout and stderr.  The output is shown only if the command fails, the output is larger than the screen, or *-A* is given; when shown and larger than the screen it is paged with *less*, otherwise it is printed directly.  On success with output that fits the screen, nothing is printed.
+Notable options: *-A* always display the output (even on success), and *-o file* save the output to *file* (which, unlike the default temporary file, is not deleted).
+By default the output is captured in a temporary file (under *~/tmp* if that directory can be used, otherwise */tmp*) that is removed once the command completes.
+<br>Used in the deprecated pipe form (*cmd | torl*) it prints a warning and -- since a piped reader cannot see the upstream command's exit status -- treats the captured input as a failure so the output is still displayed.
 <br>(The name comes from: 'Tee OR Less')
 
 ### uxrgrep

@@ -23,7 +23,7 @@ trim()
 
 unset CUME TRIM
 HASHCMD=shasum
-while getopts :cmvwWh opt
+while getopts :cmwWh opt
 do
   case "$opt" in
     c) CUME=1 ;;
