@@ -8,6 +8,7 @@ usage()
   echo "  -I      : do *NOT* exclude 'install' dirs"
   echo "  -i      : case-insensitive match (uses -iname instead of -name)"
   echo "  -w      : wildcard - wrap each pattern in '*...*' (ffind -w foo => '*foo*')"
+  echo "  -E      : do *NOT* redirect find's stderr to /dev/null (show errors)"
   echo "  -d dir  : specify directory to search (default current dir)"
   echo "  -t type : specify the type of entry to seek (default f)"
   echo "  -h      : this help text"
@@ -18,11 +19,13 @@ TYPE=f
 NO_INC=1
 NAME_OPT=-name
 unset WILDCARD
-while getopts :Iiwd:t:h opt
+unset NO_REDIR
+while getopts :IiEwd:t:h opt
 do
   case $opt in
     I) unset NO_INC ;;
     i) NAME_OPT=-iname ;;
+    E) NO_REDIR=1 ;;
     w) WILDCARD=1 ;;
     d) WHERE=$OPTARG ;;
     t) TYPE=$OPTARG ;;
@@ -35,13 +38,18 @@ shift $((OPTIND-1))
 
 [[ 0 -eq $# ]] && { echo "Nothing to do"; exit 22; }
 
+# Default: redirect find's stderr to /dev/null (e.g. "Permission denied"
+# noise on Mac). -E preserves it; /dev/stderr is bash's no-op for 2>&2.
+ERRDEST=/dev/null
+[[ -n $NO_REDIR ]] && ERRDEST=/dev/stderr
+
 while [[ $# -ne 0 ]]; do
   PATTERN=$1
   [[ -n $WILDCARD ]] && PATTERN="*$1*"
   if [[ -n $NO_INC ]]; then
-    find $WHERE -type $TYPE $NAME_OPT "$PATTERN" | fgrep -v /install/
+    find $WHERE -type $TYPE $NAME_OPT "$PATTERN" 2>"$ERRDEST" | fgrep -v /install/
   else
-    find $WHERE -type $TYPE $NAME_OPT "$PATTERN"
+    find $WHERE -type $TYPE $NAME_OPT "$PATTERN" 2>"$ERRDEST"
   fi
   shift
 done
