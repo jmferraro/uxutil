@@ -9,19 +9,20 @@ readonly SRC_DIR
 source "$SRC_DIR/../agent-lib.sh"
 
 readonly DEST_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+# the sections of settings.json in $SRC_DIR/settings
+readonly SETTINGS_MASK='setting_*.json'
 
 usage() {
   echo "Usage: claude/setup.sh [-f] [-n] [-h]"
-  echo "Merge CLAUDE.md, settings.json and the skills in $SETUP_DIR/skills"
-  echo "and $SRC_DIR/skills into $DEST_DIR; the spinner verbs in spinner.json"
-  echo "are merged into settings.json too"
+  echo "Merge CLAUDE.md and the skills in $SETUP_DIR/skills and"
+  echo "$SRC_DIR/skills into $DEST_DIR, and every"
+  echo "$SRC_DIR/settings/$SETTINGS_MASK into its settings.json"
   agent_options
 }
 
 parse_opts "$@"
 install_file "$SRC_DIR/CLAUDE.md" "$DEST_DIR/CLAUDE.md"
-merge_json "$SRC_DIR/settings.json" "$DEST_DIR/settings.json"
-merge_json "$SRC_DIR/spinner.json" "$DEST_DIR/settings.json"
+merge_json_dir "$SRC_DIR/settings" "$SETTINGS_MASK" "$DEST_DIR/settings.json"
 install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills"
 install_skills "$SRC_DIR/skills" "$DEST_DIR/skills"
 report "Claude Code" "$DEST_DIR"

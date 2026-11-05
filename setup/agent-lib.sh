@@ -119,8 +119,9 @@ install_skills() {
 # ---- JSON (and omp's settings, which 'omp config' presents as JSON) --------
 
 # jq program for json_merge: merge $new[0] into $cur[0] by the rules at the
-# top; emits {value, keys, warned, messages}, keys being the top-level keys
-# whose value changed
+# top; emits {value, keys, warned, conflicts, messages}, keys being the
+# top-level keys whose value changed and conflicts the settings kept because
+# their values differ
 # shellcheck disable=SC2016 # a jq program: its $names are jq variables
 readonly JSON_MERGE='
 def name: map(tostring) | join(".");
@@ -149,6 +150,7 @@ def merge($cur; $new; $path):
     value: $m.value,
     keys: ([$m.log[] | select(.op != "keep") | .path[0]] | unique),
     warned: any($m.log[]; .op == "keep"),
+    conflicts: [$m.log[] | select(.op == "keep") | .path | name],
     messages: [$m.log[] |
       if .op == "set" then
         (if $dry then "Would set" else "Setting" end) + " \(.path | name) = \(.new | tojson)"
@@ -161,31 +163,55 @@ def merge($cur; $new; $path):
       end]
   }'
 
-# json_merge CUR NEW RESULT - merge JSON file NEW into JSON file CUR (missing
-# or empty counts as {}), print what changes, and write the JSON_MERGE result
-# to RESULT; exits, changing nothing, if either file is not a JSON object
+# json_merge CUR NEW RESULT [NEWNAME] - merge JSON file NEW into JSON file CUR
+# (missing or empty counts as {}), print what changes, and write the
+# JSON_MERGE result to RESULT; exits, changing nothing, if either file is not
+# a JSON object, naming NEW as NEWNAME (default NEW)
 json_merge() {
-  local CUR="$1" NEW="$2" RESULT="$3" FORCE=false DRY=false
+  local CUR="$1" NEW="$2" RESULT="$3" NEWNAME="${4:-$2}" FORCE=false DRY=false
   [[ -n ${FORCE_OVERWRITE} ]] && FORCE=true
   [[ -n ${DRYRUN} ]] && DRY=true
   [[ -f $CUR ]] || CUR=/dev/null
   jq -n --slurpfile cur "$CUR" --slurpfile new "$NEW" --argjson force "$FORCE" --argjson dry "$DRY" \
-    "$JSON_MERGE" > "$RESULT" || { echo "Error: cannot merge $NEW into $1" >&2; exit 1; }
+    "$JSON_MERGE" > "$RESULT" || { echo "Error: cannot merge $NEWNAME into $1" >&2; exit 1; }
   jq -r '.messages[]' "$RESULT"
   [[ $(jq '.keys | length' "$RESULT") -gt 0 ]] && CHANGED=1
   [[ $(jq '.warned' "$RESULT") == true ]] && WARNED=1
   return 0
 }
 
-# merge_json SRC DST - merge the settings in JSON file SRC into DST
+# merge_json SRC DST [SRCNAME] - merge the settings in JSON file SRC into DST;
+# errors name SRC as SRCNAME (default SRC)
 merge_json() {
   local SRC="$1" DST="$2" RESULT="$WORKDIR/merge.json"
   require jq
-  json_merge "$DST" "$SRC" "$RESULT"
+  json_merge "$DST" "$SRC" "$RESULT" "$3"
   [[ $(jq '.keys | length' "$RESULT") -eq 0 || -n ${DRYRUN} ]] && return 0
   mkdir -p "$(dirname "$DST")"
   jq '.value' "$RESULT" > "$WORKDIR/value.json"
   cp -- "$WORKDIR/value.json" "$DST"
+}
+
+# merge_json_dir SRCDIR MASK DST - merge the settings in every JSON file in
+# SRCDIR whose name matches the glob MASK into DST in one pass: the files are
+# first combined, in name order, by the rules at the top, except that two of
+# them setting a value differently is an error (-f or not), since they are
+# meant to hold separate parts of one file
+merge_json_dir() {
+  local SRCDIR="$1" MASK="$2" DST="$3" SRC CONFLICTS
+  local COMBINED="$WORKDIR/combined.json" STEP="$WORKDIR/combine-step.json"
+  require jq
+  printf '{}\n' > "$COMBINED"
+  # shellcheck disable=SC2231 # MASK is a glob, so it must not be quoted
+  for SRC in "$SRCDIR"/$MASK; do
+    [[ -f $SRC ]] || continue
+    jq -n --slurpfile cur "$COMBINED" --slurpfile new "$SRC" --argjson force false --argjson dry false \
+      "$JSON_MERGE" > "$STEP" || { echo "Error: cannot merge $SRC" >&2; exit 1; }
+    CONFLICTS=$(jq -r '.conflicts | join(", ")' "$STEP")
+    [[ -n $CONFLICTS ]] && { echo "Error: $SRC sets $CONFLICTS differently from another file in $SRCDIR" >&2; exit 1; }
+    jq '.value' "$STEP" > "$COMBINED"
+  done
+  merge_json "$COMBINED" "$DST" "$SRCDIR/$MASK"
 }
 
 # merge_omp_config SRC - merge the settings in omp config.yml SRC into omp's

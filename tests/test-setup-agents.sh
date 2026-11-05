@@ -33,10 +33,10 @@ env_new() {
   cp -R "$REPO_DIR/setup" "$T/setup"
   [[ -d $REAL_OMP_NATIVES ]] && { mkdir -p "$T/home/.omp"; ln -s "$REAL_OMP_NATIVES" "$T/home/.omp/natives"; }
   [[ $2 == real ]] && return 0
-  rm -rf "$T/setup/omp/commands" "$T/setup/omp/skills" "$T/setup/skills"
-  mkdir -p "$T/setup/omp/commands" "$T/setup/omp/skills/ompskill" "$T/setup/skills/gen/ref"
+  rm -rf "$T/setup/omp/commands" "$T/setup/omp/skills" "$T/setup/skills" "$T/setup/claude/settings"
+  mkdir -p "$T/setup/omp/commands" "$T/setup/omp/skills/ompskill" "$T/setup/skills/gen/ref" "$T/setup/claude/settings"
   printf 'claude rules\n' > "$T/setup/claude/CLAUDE.md"
-  printf '{"theme": "dark", "effortLevel": "xhigh", "list": ["a", "b"], "modelSettings": {"m": {"effortLevel": "xhigh"}}}\n' > "$T/setup/claude/settings.json"
+  printf '{"theme": "dark", "effortLevel": "xhigh", "list": ["a", "b"], "modelSettings": {"m": {"effortLevel": "xhigh"}}}\n' > "$T/setup/claude/settings/setting_general.json"
   printf 'codex rules\n' > "$T/setup/codex/AGENTS.md"
   printf 'model = "m1"\nmodel_reasoning_effort = "xhigh"\n\n[tui]\nalt = true\n' > "$T/setup/codex/config.toml"
   printf 'modelRoles:\n  default: prov/big\n  smol: prov/small\ntheme:\n  dark: obsidian\nenabledProviders:\n  - codex\n' > "$T/setup/omp/config.yml"
@@ -133,7 +133,7 @@ test_claude_fresh() {
   run "$T/setup/claude/setup.sh"
   check "exit 0" rc_is 0
   check "CLAUDE.md installed" file_is "$T/home/.claude/CLAUDE.md" "claude rules"
-  check "settings.json installed" json_is "$T/home/.claude/settings.json" "$(cat "$T/setup/claude/settings.json")"
+  check "settings.json installed" json_is "$T/home/.claude/settings.json" "$(cat "$T/setup/claude/settings/setting_general.json")"
   check "generic skill installed" file_is "$T/home/.claude/skills/gen/SKILL.md" "generic skill"
   check "skill subdirectory installed" file_is "$T/home/.claude/skills/gen/ref/notes.md" "notes"
   check "omp skill not installed" test ! -e "$T/home/.claude/skills/ompskill"
@@ -190,7 +190,104 @@ test_claude_invalid_settings() {
   printf '{bad\n' > "$T/home/.claude/settings.json"
   run "$T/setup/claude/setup.sh"
   check "fails" test "$RC" -ne 0
+  check "names the sources, not the scratch file" out_has "Error: cannot merge $T/setup/claude/settings/setting_*.json into $T/home/.claude/settings.json"
   check "settings.json untouched" file_is "$T/home/.claude/settings.json" "{bad"
+}
+
+test_claude_sections() {
+  env_new claude_sections
+  printf '{"list": ["b", "c"], "modelSettings": {"m": {"other": 3}}, "extra": true}\n' > "$T/setup/claude/settings/setting_tools.json"
+  printf '{"theme": "light", "ignored": true}\n' > "$T/setup/claude/settings/other.json"
+  run "$T/setup/claude/setup.sh" -n
+  check "dry run: exit 0" rc_is 0
+  check "dry run: list reported once, combined" out_has 'Would set list = ["a","b","c"]'
+  check "dry run: no per-file list" out_lacks 'Would set list = ["b","c"]'
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "sections combined" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "dark", "effortLevel": "xhigh", "list": ["a", "b", "c"], "modelSettings": {"m": {"effortLevel": "xhigh", "other": 3}}, "extra": true}'
+  run "$T/setup/claude/setup.sh"
+  check "second run is up to date" out_has "Claude Code is up to date in $T/home/.claude"
+}
+
+test_claude_sections_conflict() {
+  env_new claude_sections_conflict
+  claude_seed
+  printf '{"theme": "light", "effortLevel": "xhigh", "modelSettings": {"m": {"effortLevel": "low"}}}\n' > "$T/setup/claude/settings/setting_tools.json"
+  local OPT
+  for OPT in "" -f; do
+    run "$T/setup/claude/setup.sh" ${OPT:+"$OPT"}
+    check "${OPT:-no option}: fails" test "$RC" -ne 0
+    check "${OPT:-no option}: names the file and settings" \
+      out_has "Error: $T/setup/claude/settings/setting_tools.json sets theme, modelSettings.m.effortLevel differently"
+    check "${OPT:-no option}: settings.json untouched" json_is "$T/home/.claude/settings.json" "$CLAUDE_SEED"
+  done
+}
+
+test_claude_sections_invalid() {
+  env_new claude_sections_invalid
+  claude_seed
+  printf '{bad\n' > "$T/setup/claude/settings/setting_tools.json"
+  run "$T/setup/claude/setup.sh"
+  check "fails" test "$RC" -ne 0
+  check "names the file" out_has "Error: cannot merge $T/setup/claude/settings/setting_tools.json"
+  check "settings.json untouched" json_is "$T/home/.claude/settings.json" "$CLAUDE_SEED"
+}
+
+test_claude_no_sections() {
+  env_new claude_no_sections
+  claude_seed
+  rm -rf "$T/setup/claude/settings"
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "settings.json untouched" json_is "$T/home/.claude/settings.json" "$CLAUDE_SEED"
+}
+
+# spinner_fixture - give the test a setting_spinner.json with two spinner verbs
+spinner_fixture() {
+  printf '{"spinnerVerbs": {"mode": "append", "verbs": ["Fooing", "Barring"]}}\n' > "$T/setup/claude/settings/setting_spinner.json"
+}
+
+# spinner_seed - seed settings.json with spinner verbs, one shared with the
+# fixture, and a mode that conflicts with it
+spinner_seed() {
+  mkdir -p "$T/home/.claude"
+  printf '{"theme": "light", "spinnerVerbs": {"mode": "replace", "verbs": ["Mine", "Barring"]}}\n' > "$T/home/.claude/settings.json"
+}
+
+test_claude_spinner_fresh() {
+  env_new claude_spinner_fresh
+  spinner_fixture
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "settings and spinner verbs installed" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "dark", "effortLevel": "xhigh", "list": ["a", "b"], "modelSettings": {"m": {"effortLevel": "xhigh"}}, "spinnerVerbs": {"mode": "append", "verbs": ["Fooing", "Barring"]}}'
+  run "$T/setup/claude/setup.sh"
+  check "second run is up to date" out_has "Claude Code is up to date in $T/home/.claude"
+}
+
+test_claude_spinner_merge() {
+  env_new claude_spinner_merge
+  spinner_fixture
+  spinner_seed
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "missing verbs appended, existing ones and mode kept" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "light", "effortLevel": "xhigh", "list": ["a", "b"], "modelSettings": {"m": {"effortLevel": "xhigh"}}, "spinnerVerbs": {"mode": "replace", "verbs": ["Mine", "Barring", "Fooing"]}}'
+  check "verbs reported" out_has 'Adding "Fooing" to spinnerVerbs.verbs'
+  check "mode conflict warned" out_has 'Warning: spinnerVerbs.mode is already set to "replace", skipping new value "append"'
+}
+
+test_claude_spinner_dry_run() {
+  env_new claude_spinner_dry_run
+  spinner_fixture
+  spinner_seed
+  local BEFORE
+  BEFORE=$(home_sum)
+  run "$T/setup/claude/setup.sh" -n
+  check "exit 0" rc_is 0
+  check "HOME unchanged" test "$BEFORE" == "$(home_sum)"
+  check "reports the verbs" out_has 'Would add "Fooing" to spinnerVerbs.verbs'
 }
 
 # ---- codex -----------------------------------------------------------------
@@ -370,7 +467,9 @@ test_real_files() {
   run "$T/setup/setup-agents.sh"
   check "exit 0" rc_is 0
   check "CLAUDE.md" cmp -s "$T/setup/claude/CLAUDE.md" "$T/home/.claude/CLAUDE.md"
-  check "settings.json" json_is "$T/home/.claude/settings.json" "$(cat "$T/setup/claude/settings.json")"
+  # the real sections set separate settings, so a plain deep merge models them
+  check "settings.json, every section merged in" json_is "$T/home/.claude/settings.json" \
+    "$(jq -s 'reduce .[] as $s ({}; . * $s)' "$T/setup/claude/settings/"setting_*.json)"
   check "AGENTS.md" cmp -s "$T/setup/codex/AGENTS.md" "$T/home/.codex/AGENTS.md"
   check "config.toml" toml_is "$T/home/.codex/config.toml" \
     "$(python3 -c 'import json, sys, tomllib; print(json.dumps(tomllib.load(open(sys.argv[1], "rb"))))' "$T/setup/codex/config.toml")"
@@ -384,7 +483,8 @@ test_real_files() {
 TESTS=(
   test_dispatch_help test_dispatch_unknown_agent test_dispatch_selected_agent test_agent_bad_arguments
   test_claude_fresh test_claude_merge test_claude_force test_claude_dry_run test_claude_idempotent
-  test_claude_invalid_settings
+  test_claude_invalid_settings test_claude_sections test_claude_sections_conflict test_claude_sections_invalid
+  test_claude_no_sections test_claude_spinner_fresh test_claude_spinner_merge test_claude_spinner_dry_run
   test_codex_fresh test_codex_merge test_codex_existing_table test_codex_force test_codex_dry_run
   test_codex_idempotent test_codex_escaped_quote test_codex_multiline_value_kept test_codex_multiline_string
   test_codex_unsupported_source

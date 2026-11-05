@@ -8,9 +8,11 @@ Scripts to run after cloning the repository to configure a new machine.
 
 | Agent | Source | Installed into |
 |---|---|---|
-| *claude* | [*CLAUDE.md*](claude/CLAUDE.md), [*settings.json*](claude/settings.json) (merged key by key, needs *jq*), [*spinner.json*](claude/spinner.json) (custom spinner verbs, merged into *settings.json* the same way) | *~/.claude* (or *$CLAUDE_CONFIG_DIR*) |
+| *claude* | [*CLAUDE.md*](claude/CLAUDE.md), every *setting_\*.json* in [*settings/*](claude/settings) (combined into one *settings.json*, then merged key by key, needs *jq*) | *~/.claude* (or *$CLAUDE_CONFIG_DIR*) |
 | *codex* | [*AGENTS.md*](codex/AGENTS.md), [*config.toml*](codex/config.toml) (merged line by line: only *\[table\]* headers and one-line settings) | *~/.codex* (or *$CODEX_HOME*) |
 | *omp* | [*commands/*](omp/commands), [*config.yml*](omp/config.yml) (merged through *omp config*, needs *jq*; skipped if *omp* is not installed) | *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*) |
+
+Claude's *settings.json* is kept in sections, one *setting_\<section\>.json* file per section in *claude/settings/* (e.g. [*setting_spinner.json*](claude/settings/setting_spinner.json) holds the custom spinner verbs); any file added there whose name matches *setting_\*.json* is picked up, and other files are ignored.  The sections are combined, in name order, before anything is merged, so *-n* reports each setting once; two sections setting the same value differently stop the run with an error, even with *-f* (lists, as everywhere, are combined).
 
 Generic skills, written for any agent, go in [*skills/*](skills) and are installed into every agent's skills directory; skills that only work with one agent go in that agent's own *skills/* directory (e.g. [*omp/skills/*](omp/skills)).  omp has no instructions file here: it also reads *~/.claude/CLAUDE.md* and *~/.codex/AGENTS.md*.
 
