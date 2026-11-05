@@ -1,12 +1,11 @@
 # UXUTIL/SETUP
 
-Scripts to run after cloning the repository to configure a new machine.
-
-Each coding agent has a sub-directory holding the files installed for it and the *setup.sh* that installs them, each with a README describing those files:
+Scripts to run after cloning the repository to configure a new machine.  Only the *setup-\** scripts live here; each coding agent has a sub-directory holding the files installed for it and the *setup.sh* that installs them, and the files supporting those scripts are in sub-directories too.  Each sub-directory has a README describing its contents:
 * [*claude/*](claude/README.md) -- Claude Code: global instructions and settings
 * [*codex/*](codex/README.md) -- Codex: global instructions and settings
 * [*omp/*](omp/README.md) -- omp: a slash command, its skill, and settings
 * [*skills/*](skills/README.md) -- generic skills, installed for every agent
+* [*common/*](common/README.md) -- the library the agents' *setup.sh* scripts share
 
 ## Utilities:
 
@@ -30,9 +29,3 @@ Tested by [*../tests/test-setup-agents.sh*](../tests/README.md#test-setup-agents
 ### setup-vim.sh
 *setup-vim.sh \[-f\] \[-n\]*
 <br>Symlink the Vim configuration into the home directory: [*../vim/vimrc*](../vim/README.md#vimrc) to *~/.vimrc* and the [*../vim/ferraro.vim*](../vim/README.md#ferrarovim) colorscheme to *~/.vim/colors/ferraro.vim*, and create the swap-file directory declared in the vimrc.  An existing *~/.vimrc* that differs is left in place unless *-f* is given; *-n* shows what would be done without making any changes.
-
-## Files:
-
-### agent-lib.sh
-*(sourced by each agent's setup.sh, never run)*
-<br>The functions the agents' *setup.sh* scripts share: option parsing (*-f*, *-n*, *-h*), installing files and skills, and the merges -- JSON through *jq* (key by key, lists appended; *merge_json_dir* first combines a directory of sections into one file), Codex's TOML line by line, and omp's settings through *omp config* -- each printing what it changes or, with *-n*, would change.

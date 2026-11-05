@@ -8,8 +8,8 @@ set -eo pipefail
 
 SRC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 readonly SRC_DIR
-# shellcheck source-path=SCRIPTDIR/.. source=agent-lib.sh
-source "$SRC_DIR/../agent-lib.sh"
+# shellcheck source-path=SCRIPTDIR/../common source=agent-lib.sh
+source "$SRC_DIR/../common/agent-lib.sh"
 
 readonly DEST_DIR="${PI_CODING_AGENT_DIR:-$HOME/.omp/agent}"
 

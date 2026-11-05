@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# agent-lib.sh - functions shared by the coding-agent setup scripts
+# common/agent-lib.sh - functions shared by the coding-agent setup scripts
 # (setup/<agent>/setup.sh); sourced, not run.
 #
 # Everything is merged the way setup-git.sh merges git settings:
@@ -10,7 +10,8 @@
 # Lists (JSON/YAML arrays) never conflict: entries they lack are appended.
 # -n shows what would be done without changing anything.
 
-SETUP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# the setup/ directory: this file lives in setup/common
+SETUP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck disable=SC2034 # used by the agent scripts
 readonly SETUP_DIR
 WORKDIR=$(mktemp -d "${TMPDIR:-/tmp}/setup-agents.XXXXXX")
