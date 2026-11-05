@@ -67,3 +67,9 @@ Specifying *-l* lists the open pull requests instead of checking one out; *-r* s
 ### git-who
 *git who \<file\> \[file...\]*
 <br>Show the authors of the specified file(s) with a per-author line count (via *git blame --line-porcelain*), sorted by descending count.  (See *git-editors* for just the distinct author names.)
+
+## Files:
+
+### gitconfig
+*(applied to the global git config by [setup-git.sh](../setup/README.md#setup-gitsh))*
+<br>My global git settings: aliases (e.g. *st*, *stu*, *log1*, *lol*/*lola*, *dts* for *difftool --staged*, *fpush* for *push --force-with-lease*, *unadd*), my user name and email, *tkdiff* as the diff tool and *meld* as the merge tool (with no difftool prompt), and *core.compression = 1*.

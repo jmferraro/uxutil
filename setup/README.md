@@ -1,6 +1,14 @@
-# setup
+# UXUTIL/SETUP
 
 Scripts to run after cloning the repository to configure a new machine.
+
+Each coding agent has a sub-directory holding the files installed for it and the *setup.sh* that installs them, each with a README describing those files:
+* [*claude/*](claude/README.md) -- Claude Code: global instructions and settings
+* [*codex/*](codex/README.md) -- Codex: global instructions and settings
+* [*omp/*](omp/README.md) -- omp: a slash command, its skill, and settings
+* [*skills/*](skills/README.md) -- generic skills, installed for every agent
+
+## Utilities:
 
 ### setup-agents.sh
 *setup-agents.sh \[-f\] \[-n\] \[AGENT...\]*
@@ -12,18 +20,19 @@ Scripts to run after cloning the repository to configure a new machine.
 | *codex* | [*AGENTS.md*](codex/AGENTS.md), [*config.toml*](codex/config.toml) (merged line by line: only *\[table\]* headers and one-line settings) | *~/.codex* (or *$CODEX_HOME*) |
 | *omp* | [*commands/*](omp/commands), [*config.yml*](omp/config.yml) (merged through *omp config*, needs *jq*; skipped if *omp* is not installed) | *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*) |
 
-Claude's *settings.json* is kept in sections, one *setting_\<section\>.json* file per section in *claude/settings/* (e.g. [*setting_spinner.json*](claude/settings/setting_spinner.json) holds the custom spinner verbs); any file added there whose name matches *setting_\*.json* is picked up, and other files are ignored.  The sections are combined, in name order, before anything is merged, so *-n* reports each setting once; two sections setting the same value differently stop the run with an error, even with *-f* (lists, as everywhere, are combined).
-
-Generic skills, written for any agent, go in [*skills/*](skills) and are installed into every agent's skills directory; skills that only work with one agent go in that agent's own *skills/* directory (e.g. [*omp/skills/*](omp/skills)).  omp has no instructions file here: it also reads *~/.claude/CLAUDE.md* and *~/.codex/AGENTS.md*.
-
-Machine-specific settings stay out of these files: Codex's per-project *trust_level* entries and *tui.\** state, and omp's *setupVersion*, *dev.autoqaConsent* and *disabledExtensions*.
-
-Tests: [*../tests/test-setup-agents.sh*](../tests/test-setup-agents.sh) runs every agent script against a scratch HOME (needs *jq* and *python3* 3.11+; the omp tests need *omp*).
+Every agent also gets the generic skills in [*skills/*](skills/README.md), plus any skills in its own *skills/* directory.
+Tested by [*../tests/test-setup-agents.sh*](../tests/README.md#test-setup-agentssh).
 
 ### setup-git.sh
 *setup-git.sh \[-f|--force\]*
-<br>Apply the git configuration from [*../git/gitconfig*](../git/gitconfig) to the user's global git config (via *git config --global*).  By default any setting that already differs is preserved and a warning is printed; *-f* (*--force*) overwrites existing values without warning.
+<br>Apply the git configuration from [*../git/gitconfig*](../git/README.md#gitconfig) to the user's global git config (via *git config --global*).  By default any setting that already differs is preserved and a warning is printed; *-f* (*--force*) overwrites existing values without warning.
 
 ### setup-vim.sh
 *setup-vim.sh \[-f\] \[-n\]*
-<br>Symlink the Vim configuration into the home directory: [*../vim/vimrc*](../vim/vimrc) to *~/.vimrc* and the [*../vim/ferraro.vim*](../vim/ferraro.vim) colorscheme to *~/.vim/colors/ferraro.vim*, and create the swap-file directory declared in the vimrc.  An existing *~/.vimrc* that differs is left in place unless *-f* is given; *-n* shows what would be done without making any changes.
+<br>Symlink the Vim configuration into the home directory: [*../vim/vimrc*](../vim/README.md#vimrc) to *~/.vimrc* and the [*../vim/ferraro.vim*](../vim/README.md#ferrarovim) colorscheme to *~/.vim/colors/ferraro.vim*, and create the swap-file directory declared in the vimrc.  An existing *~/.vimrc* that differs is left in place unless *-f* is given; *-n* shows what would be done without making any changes.
+
+## Files:
+
+### agent-lib.sh
+*(sourced by each agent's setup.sh, never run)*
+<br>The functions the agents' *setup.sh* scripts share: option parsing (*-f*, *-n*, *-h*), installing files and skills, and the merges -- JSON through *jq* (key by key, lists appended; *merge_json_dir* first combines a directory of sections into one file), Codex's TOML line by line, and omp's settings through *omp config* -- each printing what it changes or, with *-n*, would change.

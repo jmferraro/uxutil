@@ -2,7 +2,14 @@
 
 A collection of open source utilities and file I've developed over the years.  I use many of them daily.  Some are quick implementations of utilities provided by other (installable) packages that I might not be able to access at wherever I might be working (e.g. *sponge*)
 
-Some of these are grouped by the sub-directory for the group of functions they provide; git-specific utilities are documented in [*git/*](git/README.md), and the helper files that are not commands in their own right (a sourced library, a browser snippet, reference scripts) in [*misc/*](misc/README.md).
+This README covers the utilities in this directory.  The rest are grouped into sub-directories, each with a README describing its contents:
+* [*doc/*](doc/README.md) -- plain-text notes: setting up a new Ubuntu machine, other desktop environments, and some color values
+* [*dotfiles/*](dotfiles/README.md) -- configuration files to link into the home directory (*gdbinit*)
+* [*git/*](git/README.md) -- git utilities (most usable as git subcommands), my global git config, and git hooks
+* [*misc/*](misc/README.md) -- helper files that are not commands in their own right: a sourced library, a browser snippet, and reference scripts
+* [*setup/*](setup/README.md) -- scripts that set up a new machine: git, Vim, and the coding agents (Claude Code, Codex and omp)
+* [*tests/*](tests/README.md) -- tests for the setup scripts
+* [*vim/*](vim/README.md) -- my Vim configuration and colorscheme
 
 ## Utilities:
 
