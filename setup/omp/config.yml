@@ -1,0 +1,10 @@
+modelRoles:
+  default: openai-codex/gpt-6.1-sol:xhigh
+  smol: openai-codex/gpt-6-astra
+symbolPreset: unicode
+composer:
+  shape: claude
+theme:
+  dark: obsidian
+enabledProviders:
+  - codex
