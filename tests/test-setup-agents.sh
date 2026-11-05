@@ -303,7 +303,7 @@ test_claude_interactive_adds() {
   # differ, so they are kept with a warning, as without -i
   run_with 'y\nn\ni\ny\ny\n' "$T/setup/claude/setup.sh" -i
   check "exit 0" rc_is 0
-  check "asked about an addition" out_has 'Set effortLevel = "xhigh"? [y/N/i]'
+  check "asked about an addition" out_has 'Set effortLevel = "xhigh" (new)? [y/N/i]'
   check "not asked about overwriting a setting" out_lacks "Overwrite theme"
   check "not asked about overwriting a file" out_lacks "Overwrite $T/home/.claude/CLAUDE.md"
   check "differing setting warned" out_has 'Warning: theme is already set to "light", skipping new value "dark"'
@@ -324,7 +324,7 @@ test_claude_reconsider_adds() {
   # modelSettings.m.effortLevel n; both skill files n
   run_with 'y\nn\nn\nn\nn\n' "$T/setup/claude/setup.sh" -I
   check "exit 0" rc_is 0
-  check "listed addition asked about" out_has 'Set effortLevel = "xhigh" (listed in config.ignore.txt)? [y/N/i/r]'
+  check "listed addition asked about" out_has 'Set effortLevel = "xhigh" (new) (listed in config.ignore.txt)? [y/N/i/r]'
   check "listed overwrite not asked about" out_lacks "Overwrite theme"
   check "listed addition applied on y, nothing overwritten" json_is "$T/home/.claude/settings.json" \
     '{"theme": "light", "extra": 1, "list": ["b", "c"], "modelSettings": {"m": {"other": 2}}, "effortLevel": "xhigh"}'
@@ -357,7 +357,7 @@ test_claude_reconsider_remove() {
   run_with 'r\nr\ny\nn\ni\nr\ny\ny\n' "$T/setup/claude/setup.sh" -fI
   check "exit 0" rc_is 0
   check "r offered for a listed item" out_has "Overwrite $T/home/.claude/CLAUDE.md (listed in config.ignore.txt)? [y/N/i/r]"
-  check "r not offered for an unlisted item" out_has 'Set effortLevel = "xhigh"? [y/N/i]'
+  check "r not offered for an unlisted item" out_has 'Set effortLevel = "xhigh" (new)? [y/N/i]'
   check "r refused for an unlisted item" out_has "Please answer y, n or i"
   check "r made the changes" file_is "$T/home/.claude/CLAUDE.md" "claude rules"
   check "r and y applied; n and i skipped" json_is "$T/home/.claude/settings.json" \
@@ -549,6 +549,7 @@ test_codex_interactive() {
   run_with 'y\ni\nn\ny\ny\ny\n' "$T/setup/codex/setup.sh" -fi
   check "exit 0" rc_is 0
   check "setting prompt" out_has 'Overwrite model = "m1" (was "mine")? [y/N/i]'
+  check "new setting prompt says it is new" out_has 'Set model_reasoning_effort = "xhigh" (new)? [y/N/i]'
   check "y applied, n and i skipped" toml_is "$T/home/.codex/config.toml" '{"model": "mine", "tui": {"alt": true}}'
   check "y installed the file" file_is "$T/home/.codex/AGENTS.md" "codex rules"
   check "i added the setting" grep -qx "model" "$T/setup/codex/config.ignore.txt"

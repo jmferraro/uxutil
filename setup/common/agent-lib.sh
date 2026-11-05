@@ -344,7 +344,7 @@ def merge($cur; $new; $path):
     warned: any($m.log[]; .op == "keep"),
     conflicts: [$m.log[] | select(.op == "keep") | .path | name],
     questions: ([$m.log[] | select(.op == "set" or .op == "add" or .op == "overwrite") | {name: (.path | name), text: (
-      if .op == "set" then "Set \(.path | name) = \(.new | tojson)"
+      if .op == "set" then "Set \(.path | name) = \(.new | tojson) (new)"
       elif .op == "add" then "Add \(.new | map(tojson) | join(", ")) to \(.path | name)"
       else "Overwrite \(.path | name) = \(.new | tojson) (was \(.cur | tojson))"
       end)}] | sort_by(.name)),
@@ -598,7 +598,7 @@ merge_toml() {
       TOML_LINES[TOML_KEY_AT]=$LINE
       changed "Overwriting $NAME = $VALUE (was $TOML_KEY_VALUE)" "overwrite $NAME = $VALUE (was $TOML_KEY_VALUE)"
     else
-      allow_add "Set $NAME = $VALUE" "$NAME" setting || continue
+      allow_add "Set $NAME = $VALUE (new)" "$NAME" setting || continue
       if [[ $TOML_END -ge 0 ]]; then
         TOML_LINES=("${TOML_LINES[@]:0:TOML_END}" "$LINE" "${TOML_LINES[@]:TOML_END}")
       else
