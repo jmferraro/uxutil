@@ -14,13 +14,14 @@ source "$SRC_DIR/../common/agent-lib.sh"
 readonly DEST_DIR="${PI_CODING_AGENT_DIR:-$HOME/.omp/agent}"
 
 usage() {
-  echo "Usage: omp/setup.sh [-f] [-n] [-h]"
+  echo "Usage: omp/setup.sh [-f] [-n] [-i|-I] [-h]"
   echo "Merge the commands, the skills in $SETUP_DIR/skills and"
   echo "$SRC_DIR/skills, and config.yml (via 'omp config') into $DEST_DIR"
   agent_options
 }
 
 parse_opts "$@"
+read_ignore "$SRC_DIR/config.ignore.txt" "$DEST_DIR"
 install_tree "$SRC_DIR/commands" "$DEST_DIR/commands"
 install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills"
 install_skills "$SRC_DIR/skills" "$DEST_DIR/skills"

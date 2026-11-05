@@ -11,13 +11,14 @@ source "$SRC_DIR/../common/agent-lib.sh"
 readonly DEST_DIR="${CODEX_HOME:-$HOME/.codex}"
 
 usage() {
-  echo "Usage: codex/setup.sh [-f] [-n] [-h]"
+  echo "Usage: codex/setup.sh [-f] [-n] [-i|-I] [-h]"
   echo "Merge AGENTS.md, config.toml and the skills in $SETUP_DIR/skills"
   echo "and $SRC_DIR/skills into $DEST_DIR"
   agent_options
 }
 
 parse_opts "$@"
+read_ignore "$SRC_DIR/config.ignore.txt" "$DEST_DIR"
 install_file "$SRC_DIR/AGENTS.md" "$DEST_DIR/AGENTS.md"
 merge_toml "$SRC_DIR/config.toml" "$DEST_DIR/config.toml"
 install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills"

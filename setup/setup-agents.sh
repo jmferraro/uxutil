@@ -17,24 +17,32 @@ agents() {
 }
 
 usage() {
-  echo "Usage: $(basename "$0") [-f] [-n] [-h] [AGENT...]"
+  echo "Usage: $(basename "$0") [-f] [-n] [-i|-I] [-h] [AGENT...]"
   echo "Set up each AGENT (default: all of them): $(agents | tr '\n' ' ')"
   echo "Options:"
   echo "  -f : Overwrite files and settings that differ (default: keep them and warn)"
   echo "  -n : Show what would be done without making changes"
+  echo "  -i : Ask before each change: y makes it, n skips it, i skips it and adds it"
+  echo "       to the agent's config.ignore.txt"
+  echo "  -I : Like -i, but also ask about what config.ignore.txt lists"
   echo "  -h : Show this help message"
+  echo "Settings and files named in an agent's config.ignore.txt (e.g. omp/config.ignore.txt)"
+  echo "are left alone, even with -f"
 }
 
-unset OPTS
+unset OPTS ASK FORCE_OR_DRY
 OPTS=()
-while getopts fnh OPT; do
+while getopts fniIh OPT; do
   case $OPT in
-    f|n) OPTS+=("-$OPT") ;;
+    f|n) OPTS+=("-$OPT"); FORCE_OR_DRY=1 ;;
+    i|I) OPTS+=("-$OPT"); ASK+=$OPT ;;
     h) usage; exit 0 ;;
     *) usage >&2; exit 22 ;;
   esac
 done
 shift $((OPTIND - 1))
+[[ $ASK == *i* && $ASK == *I* ]] && { echo "Error: -i and -I cannot be combined" >&2; usage >&2; exit 22; }
+[[ -n ${ASK} && -n ${FORCE_OR_DRY} ]] && { echo "Error: -i and -I cannot be combined with -f or -n" >&2; usage >&2; exit 22; }
 
 SELECTED=("$@")
 [[ $# -eq 0 ]] && mapfile -t SELECTED < <(agents)

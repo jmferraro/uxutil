@@ -31,6 +31,8 @@ env_new() {
   unset SHOWN
   mkdir -p "$T/home"
   cp -R "$REPO_DIR/setup" "$T/setup"
+  # this host's own ignore lists must not leak into the tests
+  rm -f "$T"/setup/*/config.ignore.txt
   [[ -d $REAL_OMP_NATIVES ]] && { mkdir -p "$T/home/.omp"; ln -s "$REAL_OMP_NATIVES" "$T/home/.omp/natives"; }
   [[ $2 == real ]] && return 0
   rm -rf "$T/setup/omp/commands" "$T/setup/omp/skills" "$T/setup/skills" "$T/setup/claude/settings"
@@ -51,6 +53,14 @@ env_new() {
 run() {
   env -u CLAUDE_CONFIG_DIR -u CODEX_HOME -u PI_CODING_AGENT_DIR HOME="$T/home" "$@" > "$T/out" 2>&1
   RC=$?
+}
+
+# run_with ANSWERS CMD... - run CMD with ANSWERS (printf %b, e.g. 'y\nn\n') as
+# its input, for -i and -I
+run_with() {
+  local ANSWERS="$1"
+  shift
+  run "$@" < <(printf '%b' "$ANSWERS")
 }
 
 # check DESC CMD... - pass if CMD succeeds; on the test's first failure show
@@ -114,6 +124,15 @@ test_agent_bad_arguments() {
   env_new agent_bad_arguments
   run "$T/setup/claude/setup.sh" extra
   check "extra argument: exit 22" rc_is 22
+  local OPTS
+  for OPTS in "-i -n" "-i -f" "-I -n" "-I -f" "-i -I"; do
+    # shellcheck disable=SC2086 # OPTS holds two options
+    run "$T/setup/claude/setup.sh" $OPTS
+    check "$OPTS: exit 22" rc_is 22
+    # shellcheck disable=SC2086
+    run "$T/setup/setup-agents.sh" $OPTS
+    check "setup-agents.sh $OPTS: exit 22" rc_is 22
+  done
   run "$T/setup/claude/setup.sh" -x
   check "unknown option: exit 22" rc_is 22
 }
@@ -232,6 +251,74 @@ test_claude_sections_invalid() {
   check "fails" test "$RC" -ne 0
   check "names the file" out_has "Error: cannot merge $T/setup/claude/settings/setting_tools.json"
   check "settings.json untouched" json_is "$T/home/.claude/settings.json" "$CLAUDE_SEED"
+}
+
+test_claude_ignore() {
+  env_new claude_ignore
+  claude_seed
+  printf '# kept on this machine\n\n  theme  \nlist\nmodelSettings.m.effortLevel\nCLAUDE.md\n' > "$T/setup/claude/config.ignore.txt"
+  run "$T/setup/claude/setup.sh" -f
+  check "exit 0" rc_is 0
+  check "listed settings kept, even with -f; the rest merged" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "light", "extra": 1, "list": ["b", "c"], "modelSettings": {"m": {"other": 2}}, "effortLevel": "xhigh"}'
+  check "listed file kept" file_is "$T/home/.claude/CLAUDE.md" "mine"
+  check "unlisted skill installed" file_is "$T/home/.claude/skills/gen/SKILL.md" "generic skill"
+  check "ignored setting reported" out_has "Ignoring theme (listed in $T/setup/claude/config.ignore.txt)"
+  check "ignored file reported" out_has "Ignoring $T/home/.claude/CLAUDE.md (listed in"
+  check "ignored setting not overwritten" out_lacks "Overwriting theme"
+  run "$T/setup/claude/setup.sh"
+  check "only ignored differences left: up to date" out_has "Claude Code is up to date in $T/home/.claude"
+}
+
+test_claude_interactive() {
+  env_new claude_interactive
+  claude_seed
+  # CLAUDE.md (a bad answer, then i); the settings in name order: effortLevel
+  # y, list i, modelSettings.m.effortLevel y, theme n; both skill files y
+  run_with 'x\ni\ny\ni\ny\nn\ny\ny\n' "$T/setup/claude/setup.sh" -i
+  check "exit 0" rc_is 0
+  check "bad answer asked again" out_has "Please answer y, n or i"
+  check "file prompt" out_has "Overwrite $T/home/.claude/CLAUDE.md? [y/N/i]"
+  check "setting prompt" out_has 'Overwrite theme = "dark" (was "light")? [y/N/i]'
+  check "list prompt" out_has 'Add "a" to list? [y/N/i]'
+  check "y applied, n and i skipped" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "light", "extra": 1, "list": ["b", "c"], "modelSettings": {"m": {"other": 2, "effortLevel": "xhigh"}}, "effortLevel": "xhigh"}'
+  check "i skipped the file" file_is "$T/home/.claude/CLAUDE.md" "mine"
+  check "skills installed" file_is "$T/home/.claude/skills/gen/ref/notes.md" "notes"
+  check "i added the file" grep -qx "CLAUDE.md" "$T/setup/claude/config.ignore.txt"
+  check "i added the setting" grep -qx "list" "$T/setup/claude/config.ignore.txt"
+  check "n added nothing" test "$(grep -cv '^#' "$T/setup/claude/config.ignore.txt")" -eq 2
+  check "i reported" out_has "Ignoring list from now on (added to $T/setup/claude/config.ignore.txt)"
+  run "$T/setup/claude/setup.sh"
+  check "next run: i answers ignored" out_has "Ignoring list (listed in"
+  check "next run: n answer still differs" out_has 'Warning: theme is already set to "light"'
+}
+
+test_claude_reconsider() {
+  env_new claude_reconsider
+  claude_seed
+  printf 'theme\nCLAUDE.md\n' > "$T/setup/claude/config.ignore.txt"
+  # CLAUDE.md i (already listed); effortLevel y, list y,
+  # modelSettings.m.effortLevel y, theme y (listed); both skill files y
+  run_with 'i\ny\ny\ny\ny\ny\ny\n' "$T/setup/claude/setup.sh" -I
+  check "exit 0" rc_is 0
+  check "listed setting asked about, marked as listed" \
+    out_has 'Overwrite theme = "dark" (was "light") (listed in config.ignore.txt)? [y/N/i]'
+  check "listed setting applied on y" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "dark", "extra": 1, "list": ["b", "c", "a"], "modelSettings": {"m": {"other": 2, "effortLevel": "xhigh"}}, "effortLevel": "xhigh"}'
+  check "listed file kept on i" file_is "$T/home/.claude/CLAUDE.md" "mine"
+  check "ignore file unchanged: y removes nothing, i adds no duplicate" \
+    file_is "$T/setup/claude/config.ignore.txt" "$(printf 'theme\nCLAUDE.md')"
+}
+
+test_claude_interactive_no_answers() {
+  env_new claude_interactive_no_answers
+  claude_seed
+  run "$T/setup/claude/setup.sh" -i < /dev/null
+  check "exit 0" rc_is 0
+  check "no answers: nothing changed" json_is "$T/home/.claude/settings.json" "$CLAUDE_SEED"
+  check "no answers: nothing installed" test ! -e "$T/home/.claude/skills"
+  check "no answers: nothing added" test ! -e "$T/setup/claude/config.ignore.txt"
 }
 
 test_claude_no_sections() {
@@ -397,6 +484,31 @@ test_codex_unsupported_source() {
   check "config.toml untouched" file_is "$T/home/.codex/config.toml" 'model = "mine"'
 }
 
+test_codex_interactive() {
+  env_new codex_interactive
+  mkdir -p "$T/home/.codex"
+  printf 'model = "mine"\n' > "$T/home/.codex/config.toml"
+  # AGENTS.md y; model i, model_reasoning_effort n, tui.alt y; both skill files y
+  run_with 'y\ni\nn\ny\ny\ny\n' "$T/setup/codex/setup.sh" -i
+  check "exit 0" rc_is 0
+  check "setting prompt" out_has 'Overwrite model = "m1" (was "mine")? [y/N/i]'
+  check "y applied, n and i skipped" toml_is "$T/home/.codex/config.toml" '{"model": "mine", "tui": {"alt": true}}'
+  check "y installed the file" file_is "$T/home/.codex/AGENTS.md" "codex rules"
+  check "i added the setting" grep -qx "model" "$T/setup/codex/config.ignore.txt"
+}
+
+test_codex_ignore() {
+  env_new codex_ignore
+  mkdir -p "$T/home/.codex"
+  printf 'model = "mine"\n' > "$T/home/.codex/config.toml"
+  printf 'model\ntui\n' > "$T/setup/codex/config.ignore.txt"
+  run "$T/setup/codex/setup.sh" -f
+  check "exit 0" rc_is 0
+  check "listed key and table kept, even with -f" toml_is "$T/home/.codex/config.toml" \
+    '{"model": "mine", "model_reasoning_effort": "xhigh"}'
+  check "key in an ignored table reported" out_has "Ignoring tui.alt (listed in"
+}
+
 # ---- omp -------------------------------------------------------------------
 
 OMP_SEED='modelRoles:\n  default: prov/mine\ntheme:\n  dark: titanium\nenabledProviders:\n  - anthropic\nsymbolPreset: unicode\n'
@@ -452,6 +564,44 @@ test_omp_idempotent() {
   check "second run is up to date" out_has "omp is up to date in $T/home/.omp/agent"
 }
 
+test_omp_ignore() {
+  env_new omp_ignore
+  mkdir -p "$T/home/.omp/agent/commands"
+  printf '%b' "$OMP_SEED" > "$T/home/.omp/agent/config.yml"
+  printf 'old cmd\n' > "$T/home/.omp/agent/commands/cmd.md"
+  printf 'theme.dark\nenabledProviders\n%s\nskills/ompskill\n' "$T/home/.omp/agent/commands/cmd.md" > "$T/setup/omp/config.ignore.txt"
+  run "$T/setup/omp/setup.sh" -n -f
+  check "dry run: exit 0" rc_is 0
+  check "dry run: unlisted setting overwritten" out_has 'Would overwrite modelRoles.default = "prov/big" (was "prov/mine")'
+  check "dry run: listed setting reported" out_has "Ignoring theme.dark (listed in $T/setup/omp/config.ignore.txt)"
+  check "dry run: listed setting not overwritten" out_lacks "Would overwrite theme.dark"
+  run "$T/setup/omp/setup.sh" -f
+  check "exit 0" rc_is 0
+  check "only unlisted settings changed" omp_is \
+    '{"modelRoles": {"default": "prov/big", "smol": "prov/small"}, "theme.dark": "titanium", "enabledProviders": ["anthropic"], "symbolPreset": "unicode"}'
+  check "file listed by its full path kept" file_is "$T/home/.omp/agent/commands/cmd.md" "old cmd"
+  check "directory listed by its path in the agent's directory skipped" test ! -e "$T/home/.omp/agent/skills/ompskill"
+  check "unlisted skill installed" file_is "$T/home/.omp/agent/skills/gen/SKILL.md" "generic skill"
+  check "listed list reported" out_has "Ignoring enabledProviders (listed in"
+}
+
+test_omp_interactive() {
+  env_new omp_interactive
+  mkdir -p "$T/home/.omp/agent"
+  printf '%b' "$OMP_SEED" > "$T/home/.omp/agent/config.yml"
+  # cmd.md y, the generic skill's two files y, ompskill i; the settings in
+  # name order: enabledProviders i, modelRoles.default y, modelRoles.smol n,
+  # theme.dark n
+  run_with 'y\ny\ny\ni\ni\ny\nn\nn\n' "$T/setup/omp/setup.sh" -i
+  check "exit 0" rc_is 0
+  check "only the y answers applied" omp_is \
+    '{"modelRoles": {"default": "prov/big"}, "theme.dark": "titanium", "enabledProviders": ["anthropic"], "symbolPreset": "unicode"}'
+  check "y installed the command" file_is "$T/home/.omp/agent/commands/cmd.md" "cmd"
+  check "i skipped the skill" test ! -e "$T/home/.omp/agent/skills/ompskill"
+  check "i added the skill by its path in the agent's directory" grep -qx "skills/ompskill/SKILL.md" "$T/setup/omp/config.ignore.txt"
+  check "i added the setting" grep -qx "enabledProviders" "$T/setup/omp/config.ignore.txt"
+}
+
 test_omp_not_installed() {
   env_new omp_not_installed
   run env PATH=/usr/bin:/bin "$T/setup/omp/setup.sh"
@@ -484,13 +634,14 @@ TESTS=(
   test_dispatch_help test_dispatch_unknown_agent test_dispatch_selected_agent test_agent_bad_arguments
   test_claude_fresh test_claude_merge test_claude_force test_claude_dry_run test_claude_idempotent
   test_claude_invalid_settings test_claude_sections test_claude_sections_conflict test_claude_sections_invalid
+  test_claude_ignore test_claude_interactive test_claude_reconsider test_claude_interactive_no_answers
   test_claude_no_sections test_claude_spinner_fresh test_claude_spinner_merge test_claude_spinner_dry_run
   test_codex_fresh test_codex_merge test_codex_existing_table test_codex_force test_codex_dry_run
   test_codex_idempotent test_codex_escaped_quote test_codex_multiline_value_kept test_codex_multiline_string
-  test_codex_unsupported_source
+  test_codex_unsupported_source test_codex_ignore test_codex_interactive
 )
 OMP_TESTS=(
-  test_omp_fresh test_omp_merge test_omp_force test_omp_dry_run test_omp_idempotent test_omp_not_installed
+  test_omp_fresh test_omp_merge test_omp_force test_omp_dry_run test_omp_idempotent test_omp_ignore test_omp_interactive test_omp_not_installed
   test_real_files
 )
 if command -v omp >/dev/null; then

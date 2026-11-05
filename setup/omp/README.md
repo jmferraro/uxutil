@@ -5,8 +5,8 @@ The omp files installed into *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*), and the
 ## Utilities:
 
 ### setup.sh
-*omp/setup.sh \[-f\] \[-n\] \[-h\]*
-<br>Install the slash commands in *commands/*, the skills in *skills/* and the generic ones in [*../skills/*](../skills/README.md), and merge *config.yml* into omp's global settings through *omp config*.  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  Needs *jq*; the settings are skipped, with a warning, if *omp* is not installed.  *-f* and *-n* work as they do for *setup-agents.sh*.  Afterwards run */reload-plugins* in omp, or start a new session, to load the changes.
+*omp/setup.sh \[-f\] \[-n\] \[-i|-I\] \[-h\]*
+<br>Install the slash commands in *commands/*, the skills in *skills/* and the generic ones in [*../skills/*](../skills/README.md), and merge *config.yml* into omp's global settings through *omp config*.  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  Needs *jq*; the settings are skipped, with a warning, if *omp* is not installed.  *-f*, *-n*, *-i*, *-I* and a *config.ignore.txt* here work as they do for *setup-agents.sh*.  Afterwards run */reload-plugins* in omp, or start a new session, to load the changes.
 
 ## Files:
 

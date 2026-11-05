@@ -1,0 +1,2 @@
+# Lists of settings and files the agent setup leaves alone on this machine
+/setup/*/config.ignore.txt

@@ -10,7 +10,7 @@ Scripts to run after cloning the repository to configure a new machine.  Only th
 ## Utilities:
 
 ### setup-agents.sh
-*setup-agents.sh \[-f\] \[-n\] \[AGENT...\]*
+*setup-agents.sh \[-f\] \[-n\] \[-i|-I\] \[AGENT...\]*
 <br>Set up the coding agents (Claude Code, Codex, omp) by running each agent's *setup.sh* below; with no *AGENT* named, all of them are set up.  Each agent script can also be run on its own (e.g. *claude/setup.sh -n*).  Everything is merged the way *setup-git.sh* merges git settings: anything missing is installed, anything identical is left alone, and anything that differs is kept with a warning unless *-f* is given.  Lists (e.g. *enabledProviders*) never conflict: the entries they lack are appended.  *-n* shows what would be done without making any changes.
 
 | Agent | Source | Installed into |
@@ -20,6 +20,16 @@ Scripts to run after cloning the repository to configure a new machine.  Only th
 | *omp* | [*commands/*](omp/commands), [*config.yml*](omp/config.yml) (merged through *omp config*, needs *jq*; skipped if *omp* is not installed) | *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*) |
 
 Every agent also gets the generic skills in [*skills/*](skills/README.md), plus any skills in its own *skills/* directory.
+
+To leave some settings or files alone on one machine (e.g. a theme you prefer there), list them in that agent's *config.ignore.txt* (e.g. *omp/config.ignore.txt*), which git ignores, so each machine keeps its own.  One name per line, written as setup prints it: a setting such as *theme.dark* or *modelRoles.default*, or an installed file by its full path or its path in the agent's directory (e.g. *skills/do-prompt/SKILL.md*).  A name covers everything under it (*modelRoles*, *skills/do-prompt*); blank lines and lines starting with *#* are skipped.  Listed items are never changed, even with *-f*, and each one that would have changed is reported as *Ignoring ...*:
+```
+$ cat omp/config.ignore.txt
+theme.dark
+enabledProviders
+$ ./setup-agents.sh -f omp      # updates everything else that differs
+```
+
+*-i* asks before each change instead: each file to install or overwrite, and each setting to set, add to or overwrite, using the wording *-n* prints.  The answers are read from the input: *y* makes the change, *n* (or just Enter) skips it this time, and *i* skips it and adds its name to the agent's *config.ignore.txt*, so later runs leave it alone.  If the input runs out, the remaining changes are skipped.  *-I* asks the same way but disregards *config.ignore.txt*, so what it lists can be reconsidered (each such question says so); *y* then makes the change once, but the name stays listed: delete its line to stop ignoring it.  *-i* and *-I* cannot be combined with each other, *-f* or *-n*.
 Tested by [*../tests/test-setup-agents.sh*](../tests/README.md#test-setup-agentssh).
 
 ### setup-git.sh

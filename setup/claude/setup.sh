@@ -13,7 +13,7 @@ readonly DEST_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 readonly SETTINGS_MASK='setting_*.json'
 
 usage() {
-  echo "Usage: claude/setup.sh [-f] [-n] [-h]"
+  echo "Usage: claude/setup.sh [-f] [-n] [-i|-I] [-h]"
   echo "Merge CLAUDE.md and the skills in $SETUP_DIR/skills and"
   echo "$SRC_DIR/skills into $DEST_DIR, and every"
   echo "$SRC_DIR/settings/$SETTINGS_MASK into its settings.json"
@@ -21,6 +21,7 @@ usage() {
 }
 
 parse_opts "$@"
+read_ignore "$SRC_DIR/config.ignore.txt" "$DEST_DIR"
 install_file "$SRC_DIR/CLAUDE.md" "$DEST_DIR/CLAUDE.md"
 merge_json_dir "$SRC_DIR/settings" "$SETTINGS_MASK" "$DEST_DIR/settings.json"
 install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills"

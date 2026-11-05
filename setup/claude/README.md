@@ -5,8 +5,8 @@ The Claude Code files installed into *~/.claude* (or *$CLAUDE_CONFIG_DIR*), and 
 ## Utilities:
 
 ### setup.sh
-*claude/setup.sh \[-f\] \[-n\] \[-h\]*
-<br>Install *CLAUDE.md*, the generic skills in [*../skills/*](../skills/README.md) and any in a *skills/* directory here, and merge the sections in *settings/* into *settings.json*.  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  Needs *jq*.  *-f* and *-n* work as they do for *setup-agents.sh*.
+*claude/setup.sh \[-f\] \[-n\] \[-i|-I\] \[-h\]*
+<br>Install *CLAUDE.md*, the generic skills in [*../skills/*](../skills/README.md) and any in a *skills/* directory here, and merge the sections in *settings/* into *settings.json*.  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  Needs *jq*.  *-f*, *-n*, *-i*, *-I* and a *config.ignore.txt* here work as they do for *setup-agents.sh*.
 
 ## Files:
 

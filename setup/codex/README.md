@@ -5,8 +5,8 @@ The Codex files installed into *~/.codex* (or *$CODEX_HOME*), and the script tha
 ## Utilities:
 
 ### setup.sh
-*codex/setup.sh \[-f\] \[-n\] \[-h\]*
-<br>Install *AGENTS.md*, the generic skills in [*../skills/*](../skills/README.md) and any in a *skills/* directory here, and merge *config.toml* into *~/.codex/config.toml*.  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  *-f* and *-n* work as they do for *setup-agents.sh*.
+*codex/setup.sh \[-f\] \[-n\] \[-i|-I\] \[-h\]*
+<br>Install *AGENTS.md*, the generic skills in [*../skills/*](../skills/README.md) and any in a *skills/* directory here, and merge *config.toml* into *~/.codex/config.toml*.  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  *-f*, *-n*, *-i*, *-I* and a *config.ignore.txt* here work as they do for *setup-agents.sh*.
 
 ## Files:
 
