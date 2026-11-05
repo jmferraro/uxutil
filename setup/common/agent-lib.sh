@@ -10,8 +10,9 @@
 # Lists (JSON/YAML arrays) never conflict: entries they lack are appended.
 # -n shows what would be done without changing anything.
 # Anything named in the agent's config.ignore.txt (see read_ignore) is left
-# alone, even with -f.  -i asks before each change instead (see ask); -I
-# asks about what config.ignore.txt lists too.
+# alone, even with -f.  -i asks before each change the run would make (see
+# ask): each addition, and with -f each overwrite too; -I asks about what
+# config.ignore.txt lists as well.
 
 # the setup/ directory: this file lives in setup/common
 SETUP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -30,9 +31,10 @@ agent_options() {
   echo "Options:"
   echo "  -f : Overwrite files and settings that differ (default: keep them and warn)"
   echo "  -n : Show what would be done without making changes"
-  echo "  -i : Ask before each change: y makes it, n skips it, i skips it and adds it"
-  echo "       to config.ignore.txt"
-  echo "  -I : Like -i, but also ask about what config.ignore.txt lists"
+  echo "  -i : Ask before each addition (with -f, before each overwrite too): y makes it,"
+  echo "       n skips it, i skips it and adds it to config.ignore.txt"
+  echo "  -I : Like -i, but also ask about what config.ignore.txt lists; for those, r makes"
+  echo "       the change and removes them from config.ignore.txt"
   echo "  -h : Show this help message"
   echo "Settings and files named in config.ignore.txt beside setup.sh are left alone, even with -f"
 }
@@ -54,11 +56,7 @@ parse_opts() {
   shift $((OPTIND - 1))
   [[ $# -ne 0 ]] && { echo "Unexpected argument: $1" >&2; usage >&2; exit 22; }
   [[ $ASK == *i* && $ASK == *I* ]] && { echo "Error: -i and -I cannot be combined" >&2; usage >&2; exit 22; }
-  if [[ -n ${INTERACTIVE} && ( -n ${FORCE_OVERWRITE} || -n ${DRYRUN} ) ]]; then
-    echo "Error: -i and -I cannot be combined with -f or -n" >&2
-    usage >&2
-    exit 22
-  fi
+  [[ -n ${INTERACTIVE} && -n ${DRYRUN} ]] && { echo "Error: -i and -I cannot be combined with -n" >&2; usage >&2; exit 22; }
   return 0
 }
 
@@ -170,30 +168,74 @@ add_ignore() {
   echo "Ignoring $1 from now on (added to $IGNORE_FILE)"
 }
 
+# remove_ignore ENTRY... - remove the lines naming ENTRY from
+# config.ignore.txt (comments and other lines are kept), and stop leaving
+# ENTRY alone
+remove_ignore() {
+  local LINE E KEEP TMP="$WORKDIR/config.ignore.txt"
+  local -a REST
+  : > "$TMP"
+  while IFS= read -r LINE || [[ -n $LINE ]]; do
+    KEEP=1
+    for E in "$@"; do
+      [[ $(trim "$LINE") == "$E" ]] && KEEP=""
+    done
+    [[ -n $KEEP ]] && printf '%s\n' "$LINE" >> "$TMP"
+  done < "$IGNORE_FILE"
+  cp -- "$TMP" "$IGNORE_FILE"
+  for E in "$@"; do
+    REST=()
+    for LINE in "${IGNORE_LISTED[@]}"; do
+      [[ $LINE == "$E" ]] || REST+=("$LINE")
+    done
+    IGNORE_LISTED=("${REST[@]}")
+    REST=()
+    for LINE in "${IGNORE[@]}"; do
+      [[ $LINE == "$E" ]] || REST+=("$LINE")
+    done
+    IGNORE=("${REST[@]}")
+    echo "No longer ignoring $E (removed from $IGNORE_FILE)"
+  done
+}
+
 # ---- -i and -I ---------------------------------------------------------------
 
 # ask QUESTION NAME KIND - ask whether to make the change QUESTION describes to
 # NAME, a setting or (KIND file) an installed file, reading the answer from
 # the input: y makes it (succeeds); n, an empty answer or the end of the input
 # skips it; i skips it and adds NAME (a file by its path under IGNORE_BASE)
-# to config.ignore.txt
+# to config.ignore.txt.  When config.ignore.txt lists NAME (which only -I
+# asks about), the question says so and r is offered as well: it makes the
+# change and removes the lines that list NAME
 ask() {
-  local QUESTION="$1" NAME="$2" ANSWER NOTE=""
-  if [[ $3 == file ]]; then
-    file_in "$NAME" "${IGNORE_LISTED[@]}" && NOTE=" (listed in ${IGNORE_FILE##*/})"
-    NAME=${NAME#"$IGNORE_BASE"/}
-  else
-    setting_in "$NAME" "${IGNORE_LISTED[@]}" && NOTE=" (listed in ${IGNORE_FILE##*/})"
+  local QUESTION="$1" NAME="$2" ANSWER E NOTE="" CHOICES="y/N/i" PLEASE="y, n or i"
+  local -a LISTED=()
+  for E in "${IGNORE_LISTED[@]}"; do
+    if [[ $3 == file ]]; then
+      file_in "$NAME" "$E" && LISTED+=("$E")
+    else
+      setting_in "$NAME" "$E" && LISTED+=("$E")
+    fi
+  done
+  [[ $3 == file ]] && NAME=${NAME#"$IGNORE_BASE"/}
+  if [[ ${#LISTED[@]} -gt 0 ]]; then
+    NOTE=" (listed in ${IGNORE_FILE##*/})"
+    CHOICES="y/N/i/r"
+    PLEASE="y, n, i or r"
   fi
   while :; do
-    printf '%s%s? [y/N/i] ' "$QUESTION" "$NOTE" >&2
+    printf '%s%s? [%s] ' "$QUESTION" "$NOTE" "$CHOICES" >&2
     IFS= read -r ANSWER || { echo >&2; return 1; }
     case $ANSWER in
       y|Y) return 0 ;;
       ''|n|N) return 1 ;;
-      i|I) add_ignore "$NAME"; return 1 ;;
-      *) echo "Please answer y, n or i" >&2 ;;
+      i|I)
+        [[ ${#LISTED[@]} -gt 0 ]] && { echo "Ignoring $NAME (already listed in $IGNORE_FILE)"; return 1; }
+        add_ignore "$NAME"
+        return 1 ;;
+      r|R) [[ ${#LISTED[@]} -gt 0 ]] && { remove_ignore "${LISTED[@]}"; return 0; } ;;
     esac
+    echo "Please answer $PLEASE" >&2
   done
 }
 
@@ -204,13 +246,11 @@ allow_add() {
 }
 
 # allow_overwrite QUESTION NAME KIND WARNING - succeed if NAME, which differs,
-# may be overwritten: with -f, or with -i/-I if the answer to QUESTION is y;
-# otherwise print WARNING
+# may be overwritten: only with -f (otherwise print WARNING), and with -i/-I
+# too only if the answer to QUESTION is y
 allow_overwrite() {
-  [[ -n ${INTERACTIVE} ]] && { ask "$1" "$2" "$3"; return; }
-  [[ -n ${FORCE_OVERWRITE} ]] && return 0
-  warn "$4"
-  return 1
+  [[ -z ${FORCE_OVERWRITE} ]] && { warn "$4"; return 1; }
+  [[ -z ${INTERACTIVE} ]] || ask "$1" "$2" "$3"
 }
 
 # ---- files -----------------------------------------------------------------
@@ -239,7 +279,7 @@ install_file() {
 install_tree() {
   local SRCDIR="$1" DSTDIR="$2" SRC
   [[ -d $SRCDIR ]] || return 0
-  # the list is read on fd 3: install_file may read answers from the input
+  # the file names are read on fd 3: install_file may read answers from the input
   while IFS= read -r -d '' -u 3 SRC; do
     install_file "$SRC" "$DSTDIR/${SRC#"$SRCDIR"/}"
   done 3< <(find "$SRCDIR" -type f -print0 | sort -z)
@@ -265,7 +305,8 @@ install_skills() {
 # and, silently, those in $skip; emits {value, keys, warned, conflicts,
 # questions, messages}, keys being the top-level keys whose value changed,
 # conflicts the settings kept because their values differ, and questions
-# {name, text} for -i, one per change, in name order
+# {name, text} for -i, one per change made (not per conflict kept), in name
+# order
 # shellcheck disable=SC2016 # a jq program: its $names are jq variables
 readonly JSON_MERGE='
 def name: map(tostring) | join(".");
@@ -302,7 +343,7 @@ def merge($cur; $new; $path):
     keys: ([$m.log[] | select(.op != "keep" and .op != "ignore") | .path[0]] | unique),
     warned: any($m.log[]; .op == "keep"),
     conflicts: [$m.log[] | select(.op == "keep") | .path | name],
-    questions: ([$m.log[] | select(.op != "ignore") | {name: (.path | name), text: (
+    questions: ([$m.log[] | select(.op == "set" or .op == "add" or .op == "overwrite") | {name: (.path | name), text: (
       if .op == "set" then "Set \(.path | name) = \(.new | tojson)"
       elif .op == "add" then "Add \(.new | map(tojson) | join(", ")) to \(.path | name)"
       else "Overwrite \(.path | name) = \(.new | tojson) (was \(.cur | tojson))"
@@ -330,7 +371,8 @@ jq_list() {
 # (missing or empty counts as {}), print what changes, and write the
 # JSON_MERGE result to RESULT; exits, changing nothing, if either file is not
 # a JSON object, naming NEW as NEWNAME (default NEW).  With -i/-I each change
-# is asked about first, and only those answered y are made
+# (each addition, and with -f each overwrite) is asked about first, and only
+# those answered y are made
 json_merge() {
   local CUR="$1" NEW="$2" RESULT="$3" NEWNAME="${4:-$2}" FORCE=false DRY=false NAME TEXT
   local -a ARGS SKIP=()
@@ -340,13 +382,12 @@ json_merge() {
   ARGS=(--slurpfile cur "$CUR" --slurpfile new "$NEW" --argjson dry "$DRY"
     --argjson ignore "$(jq_list "${IGNORE[@]}")" --arg ignorefile "$IGNORE_FILE")
   if [[ -n ${INTERACTIVE} ]]; then
-    jq -n "${ARGS[@]}" --argjson force false --argjson skip '[]' "$JSON_MERGE" > "$RESULT" ||
+    jq -n "${ARGS[@]}" --argjson force "$FORCE" --argjson skip '[]' "$JSON_MERGE" > "$RESULT" ||
       { echo "Error: cannot merge $NEWNAME into $1" >&2; exit 1; }
     # the questions are read on fd 3: ask reads the answers from the input
     while IFS= read -r -u 3 NAME && IFS= read -r -u 3 TEXT; do
       ask "$TEXT" "$NAME" setting || SKIP+=("$NAME")
     done 3< <(jq -r '.questions[] | .name, .text' "$RESULT")
-    FORCE=true
   fi
   jq -n "${ARGS[@]}" --argjson force "$FORCE" --argjson skip "$(jq_list "${SKIP[@]}")" "$JSON_MERGE" > "$RESULT" ||
     { echo "Error: cannot merge $NEWNAME into $1" >&2; exit 1; }

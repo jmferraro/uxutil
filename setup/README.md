@@ -29,7 +29,14 @@ enabledProviders
 $ ./setup-agents.sh -f omp      # updates everything else that differs
 ```
 
-*-i* asks before each change instead: each file to install or overwrite, and each setting to set, add to or overwrite, using the wording *-n* prints.  The answers are read from the input: *y* makes the change, *n* (or just Enter) skips it this time, and *i* skips it and adds its name to the agent's *config.ignore.txt*, so later runs leave it alone.  If the input runs out, the remaining changes are skipped.  *-I* asks the same way but disregards *config.ignore.txt*, so what it lists can be reconsidered (each such question says so); *y* then makes the change once, but the name stays listed: delete its line to stop ignoring it.  *-i* and *-I* cannot be combined with each other, *-f* or *-n*.
+*-i* asks before each change the run would make, using the wording *-n* prints: on its own, before each addition (a file to install, a setting to set, entries to add to a list), while anything that differs is kept with a warning as usual; with *-f* (*-fi*), before each overwrite too.  The answers are read from the input: *y* makes the change, *n* (or just Enter) skips it this time, and *i* skips it and adds its name to the agent's *config.ignore.txt*, so later runs leave it alone.  If the input runs out, the remaining changes are skipped.  *-I* (or *-fI* to overwrite) asks the same way but disregards *config.ignore.txt*, so what it lists can be reconsidered.  Each question about an item in *config.ignore.txt* says so and offers one more answer, *r*: make the change and remove the item's line from *config.ignore.txt*.  If a broader line covers the item (e.g. *modelRoles* for *modelRoles.default*), that line is removed, so nothing under it is ignored any more.  *y* makes the change once and leaves *config.ignore.txt* as it is, as does *i*; *n* skips it.  *-i* and *-I* cannot be combined with each other or with *-n*.
+
+| | missing | differs |
+|---|---|---|
+| *(no option)* | added | kept, with a warning |
+| *-i* | asked | kept, with a warning |
+| *-f* | added | overwritten |
+| *-fi* | asked | asked |
 Tested by [*../tests/test-setup-agents.sh*](../tests/README.md#test-setup-agentssh).
 
 ### setup-git.sh

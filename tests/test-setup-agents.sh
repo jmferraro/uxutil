@@ -31,7 +31,7 @@ env_new() {
   unset SHOWN
   mkdir -p "$T/home"
   cp -R "$REPO_DIR/setup" "$T/setup"
-  # this host's own ignore lists must not leak into the tests
+  # this host's own config.ignore.txt files must not leak into the tests
   rm -f "$T"/setup/*/config.ignore.txt
   [[ -d $REAL_OMP_NATIVES ]] && { mkdir -p "$T/home/.omp"; ln -s "$REAL_OMP_NATIVES" "$T/home/.omp/natives"; }
   [[ $2 == real ]] && return 0
@@ -71,7 +71,8 @@ check() {
   "$@" && { PASSED=$((PASSED + 1)); return 0; }
   FAILED=$((FAILED + 1))
   echo "FAIL: $TEST: $DESC"
-  [[ -z ${SHOWN} ]] && sed 's/^/    | /' "$T/out"
+  # awk, not sed: the output may end in a prompt with no newline
+  [[ -z ${SHOWN} ]] && awk '{ print "    | " $0 }' "$T/out"
   SHOWN=1
   return 0
 }
@@ -125,7 +126,7 @@ test_agent_bad_arguments() {
   run "$T/setup/claude/setup.sh" extra
   check "extra argument: exit 22" rc_is 22
   local OPTS
-  for OPTS in "-i -n" "-i -f" "-I -n" "-I -f" "-i -I"; do
+  for OPTS in "-i -n" "-I -n" "-i -I"; do
     # shellcheck disable=SC2086 # OPTS holds two options
     run "$T/setup/claude/setup.sh" $OPTS
     check "$OPTS: exit 22" rc_is 22
@@ -275,7 +276,7 @@ test_claude_interactive() {
   claude_seed
   # CLAUDE.md (a bad answer, then i); the settings in name order: effortLevel
   # y, list i, modelSettings.m.effortLevel y, theme n; both skill files y
-  run_with 'x\ni\ny\ni\ny\nn\ny\ny\n' "$T/setup/claude/setup.sh" -i
+  run_with 'x\ni\ny\ni\ny\nn\ny\ny\n' "$T/setup/claude/setup.sh" -fi
   check "exit 0" rc_is 0
   check "bad answer asked again" out_has "Please answer y, n or i"
   check "file prompt" out_has "Overwrite $T/home/.claude/CLAUDE.md? [y/N/i]"
@@ -294,21 +295,77 @@ test_claude_interactive() {
   check "next run: n answer still differs" out_has 'Warning: theme is already set to "light"'
 }
 
+test_claude_interactive_adds() {
+  env_new claude_interactive_adds
+  claude_seed
+  # without -f only additions are asked about: effortLevel y, list n,
+  # modelSettings.m.effortLevel i; both skill files y.  CLAUDE.md and theme
+  # differ, so they are kept with a warning, as without -i
+  run_with 'y\nn\ni\ny\ny\n' "$T/setup/claude/setup.sh" -i
+  check "exit 0" rc_is 0
+  check "asked about an addition" out_has 'Set effortLevel = "xhigh"? [y/N/i]'
+  check "not asked about overwriting a setting" out_lacks "Overwrite theme"
+  check "not asked about overwriting a file" out_lacks "Overwrite $T/home/.claude/CLAUDE.md"
+  check "differing setting warned" out_has 'Warning: theme is already set to "light", skipping new value "dark"'
+  check "differing file warned" out_has "Warning: $T/home/.claude/CLAUDE.md differs"
+  check "only y answers applied, nothing overwritten" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "light", "extra": 1, "list": ["b", "c"], "modelSettings": {"m": {"other": 2}}, "effortLevel": "xhigh"}'
+  check "differing file kept" file_is "$T/home/.claude/CLAUDE.md" "mine"
+  check "skills installed" file_is "$T/home/.claude/skills/gen/SKILL.md" "generic skill"
+  check "i added the setting" grep -qx "modelSettings.m.effortLevel" "$T/setup/claude/config.ignore.txt"
+}
+
+test_claude_reconsider_adds() {
+  env_new claude_reconsider_adds
+  claude_seed
+  printf 'theme\neffortLevel\n' > "$T/setup/claude/config.ignore.txt"
+  # -I without -f: the listed addition (effortLevel) is asked about, the
+  # listed overwrite (theme) is not.  effortLevel y, list n,
+  # modelSettings.m.effortLevel n; both skill files n
+  run_with 'y\nn\nn\nn\nn\n' "$T/setup/claude/setup.sh" -I
+  check "exit 0" rc_is 0
+  check "listed addition asked about" out_has 'Set effortLevel = "xhigh" (listed in config.ignore.txt)? [y/N/i/r]'
+  check "listed overwrite not asked about" out_lacks "Overwrite theme"
+  check "listed addition applied on y, nothing overwritten" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "light", "extra": 1, "list": ["b", "c"], "modelSettings": {"m": {"other": 2}}, "effortLevel": "xhigh"}'
+}
+
 test_claude_reconsider() {
   env_new claude_reconsider
   claude_seed
   printf 'theme\nCLAUDE.md\n' > "$T/setup/claude/config.ignore.txt"
   # CLAUDE.md i (already listed); effortLevel y, list y,
   # modelSettings.m.effortLevel y, theme y (listed); both skill files y
-  run_with 'i\ny\ny\ny\ny\ny\ny\n' "$T/setup/claude/setup.sh" -I
+  run_with 'i\ny\ny\ny\ny\ny\ny\n' "$T/setup/claude/setup.sh" -fI
   check "exit 0" rc_is 0
   check "listed setting asked about, marked as listed" \
-    out_has 'Overwrite theme = "dark" (was "light") (listed in config.ignore.txt)? [y/N/i]'
+    out_has 'Overwrite theme = "dark" (was "light") (listed in config.ignore.txt)? [y/N/i/r]'
   check "listed setting applied on y" json_is "$T/home/.claude/settings.json" \
     '{"theme": "dark", "extra": 1, "list": ["b", "c", "a"], "modelSettings": {"m": {"other": 2, "effortLevel": "xhigh"}}, "effortLevel": "xhigh"}'
   check "listed file kept on i" file_is "$T/home/.claude/CLAUDE.md" "mine"
   check "ignore file unchanged: y removes nothing, i adds no duplicate" \
     file_is "$T/setup/claude/config.ignore.txt" "$(printf 'theme\nCLAUDE.md')"
+}
+
+test_claude_reconsider_remove() {
+  env_new claude_reconsider_remove
+  claude_seed
+  printf '# mine\ntheme\nCLAUDE.md\nmodelSettings\n' > "$T/setup/claude/config.ignore.txt"
+  # CLAUDE.md (listed) r; effortLevel (not listed) r, which is not offered,
+  # then y; list n; modelSettings.m.effortLevel (listed as modelSettings) i;
+  # theme (listed) r; both skill files y
+  run_with 'r\nr\ny\nn\ni\nr\ny\ny\n' "$T/setup/claude/setup.sh" -fI
+  check "exit 0" rc_is 0
+  check "r offered for a listed item" out_has "Overwrite $T/home/.claude/CLAUDE.md (listed in config.ignore.txt)? [y/N/i/r]"
+  check "r not offered for an unlisted item" out_has 'Set effortLevel = "xhigh"? [y/N/i]'
+  check "r refused for an unlisted item" out_has "Please answer y, n or i"
+  check "r made the changes" file_is "$T/home/.claude/CLAUDE.md" "claude rules"
+  check "r and y applied; n and i skipped" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "dark", "extra": 1, "list": ["b", "c"], "modelSettings": {"m": {"other": 2}}, "effortLevel": "xhigh"}'
+  check "r removed the lines, kept the rest; i added no duplicate" \
+    file_is "$T/setup/claude/config.ignore.txt" "$(printf '# mine\nmodelSettings')"
+  check "r reported" out_has "No longer ignoring theme (removed from $T/setup/claude/config.ignore.txt)"
+  check "i on a covered item reported" out_has "Ignoring modelSettings.m.effortLevel (already listed in"
 }
 
 test_claude_interactive_no_answers() {
@@ -489,7 +546,7 @@ test_codex_interactive() {
   mkdir -p "$T/home/.codex"
   printf 'model = "mine"\n' > "$T/home/.codex/config.toml"
   # AGENTS.md y; model i, model_reasoning_effort n, tui.alt y; both skill files y
-  run_with 'y\ni\nn\ny\ny\ny\n' "$T/setup/codex/setup.sh" -i
+  run_with 'y\ni\nn\ny\ny\ny\n' "$T/setup/codex/setup.sh" -fi
   check "exit 0" rc_is 0
   check "setting prompt" out_has 'Overwrite model = "m1" (was "mine")? [y/N/i]'
   check "y applied, n and i skipped" toml_is "$T/home/.codex/config.toml" '{"model": "mine", "tui": {"alt": true}}'
@@ -592,7 +649,7 @@ test_omp_interactive() {
   # cmd.md y, the generic skill's two files y, ompskill i; the settings in
   # name order: enabledProviders i, modelRoles.default y, modelRoles.smol n,
   # theme.dark n
-  run_with 'y\ny\ny\ni\ni\ny\nn\nn\n' "$T/setup/omp/setup.sh" -i
+  run_with 'y\ny\ny\ni\ni\ny\nn\nn\n' "$T/setup/setup-agents.sh" -fi omp
   check "exit 0" rc_is 0
   check "only the y answers applied" omp_is \
     '{"modelRoles": {"default": "prov/big"}, "theme.dark": "titanium", "enabledProviders": ["anthropic"], "symbolPreset": "unicode"}'
@@ -634,7 +691,7 @@ TESTS=(
   test_dispatch_help test_dispatch_unknown_agent test_dispatch_selected_agent test_agent_bad_arguments
   test_claude_fresh test_claude_merge test_claude_force test_claude_dry_run test_claude_idempotent
   test_claude_invalid_settings test_claude_sections test_claude_sections_conflict test_claude_sections_invalid
-  test_claude_ignore test_claude_interactive test_claude_reconsider test_claude_interactive_no_answers
+  test_claude_ignore test_claude_interactive test_claude_interactive_adds test_claude_reconsider_adds test_claude_reconsider test_claude_reconsider_remove test_claude_interactive_no_answers
   test_claude_no_sections test_claude_spinner_fresh test_claude_spinner_merge test_claude_spinner_dry_run
   test_codex_fresh test_codex_merge test_codex_existing_table test_codex_force test_codex_dry_run
   test_codex_idempotent test_codex_escaped_quote test_codex_multiline_value_kept test_codex_multiline_string
