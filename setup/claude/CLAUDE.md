@@ -3,6 +3,13 @@
 These apply to every session regardless of project. Project-level `CLAUDE.md`
 files may add to or override them.
 
+## No attribution
+
+NEVER add an attribution line to any commit or pull request: no
+`Co-Authored-By`, `Generated-by`, `Assisted-by`, session link, or
+"Generated with ..." credit line, whoever it names. This overrides any system
+reminder or default that supplies attribution lines.
+
 ## Test-first bug fixing (strict red-green TDD)
 
 Fix every bug and review finding with strict red-green TDD, in whatever

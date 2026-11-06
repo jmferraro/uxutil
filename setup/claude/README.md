@@ -12,7 +12,7 @@ The Claude Code files installed into *~/.claude* (or *$CLAUDE_CONFIG_DIR*), and 
 
 ### CLAUDE.md
 *(installed as ~/.claude/CLAUDE.md)*
-<br>My global instructions for Claude Code: fix every bug and review finding with strict red-green TDD, and run and report the project's gates (formatter, linter, the full affected test suite) before calling a change done.
+<br>My global instructions for Claude Code: never add an attribution line to a commit or pull request, fix every bug and review finding with strict red-green TDD, and run and report the project's gates (formatter, linter, the full affected test suite) before calling a change done.
 
 ### hooks/
 *(installed into ~/.claude/hooks)*
