@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+# git-no-commit - make the current clone take no commits: install pre-commit
+# and pre-merge-commit hooks that refuse every commit (merges and amends
+# included), and set pull.ff=only so a pull can only fast-forward.  A hook
+# that is already there and was not installed by this script is never
+# replaced or removed.  --remove takes the block away again.
+
+readonly MARKER="# installed by git-no-commit"
+readonly HOOKS=(pre-commit pre-merge-commit)
+
+usage()
+{
+  echo "Usage: $(basename "$0") [--remove|-r] [-h]"
+  echo "Block commits in the current repository: install pre-commit and pre-merge-commit"
+  echo "hooks that refuse every commit, and set pull.ff=only.  A hook already there that"
+  echo "this script did not install is never replaced or removed."
+  echo "Where:"
+  echo "  --remove, -r : remove the hooks this script installed (pull.ff is left as it is)"
+  echo "  -h           : this help text"
+}
+
+# ours FILE - succeed if FILE is a hook this script installed
+ours()
+{
+  [[ -f $1 && ! -L $1 ]] && grep -qxF "$MARKER" "$1"
+}
+
+unset REMOVE
+ARGS=()
+for ARG in "$@"; do
+  [[ $ARG == --remove ]] && ARG=-r
+  ARGS+=("$ARG")
+done
+set -- "${ARGS[@]}"
+while getopts :rh OPT; do
+  case $OPT in
+    r) REMOVE=1 ;;
+    h) usage; exit ;;
+    *) echo "ERROR: Unknown option: '-$OPTARG'"; exit 22 ;;
+  esac
+done
+shift $((OPTIND-1))
+[[ $# -ne 0 ]] && { echo "Invalid command line"; exit 22; }
+
+git rev-parse --git-dir &> /dev/null || { echo "FATAL: Does not appear to be a directory using git"; exit 2; }
+# a core.hooksPath directory may be shared by other repositories
+HOOKS_PATH=$(git config --get core.hooksPath)
+[[ -n $HOOKS_PATH ]] && { echo "FATAL: core.hooksPath is set ($HOOKS_PATH); its hooks may be shared with other repositories, so they are left alone"; exit 2; }
+HOOK_DIR=$(git rev-parse --path-format=absolute --git-path hooks) || exit 2
+
+if [[ -n $REMOVE ]]; then
+  for HOOK in "${HOOKS[@]}"; do
+    FILE="$HOOK_DIR/$HOOK"
+    if ours "$FILE"; then
+      rm -f -- "$FILE" && echo "Removed $FILE"
+    elif [[ -e $FILE || -L $FILE ]]; then
+      echo "Kept $FILE (not installed by git-no-commit)"
+    fi
+  done
+  exit 0
+fi
+
+# check every hook first, so nothing changes if any of them is in the way
+for HOOK in "${HOOKS[@]}"; do
+  FILE="$HOOK_DIR/$HOOK"
+  [[ -e $FILE || -L $FILE ]] && ! ours "$FILE" &&
+    { echo "FATAL: $FILE already exists and was not installed by git-no-commit; not replacing it"; exit 17; }
+done
+
+mkdir -p "$HOOK_DIR" || exit 2
+for HOOK in "${HOOKS[@]}"; do
+  FILE="$HOOK_DIR/$HOOK"
+  ours "$FILE" && { echo "$FILE is already installed"; continue; }
+  cat > "$FILE" <<EOF || exit 2
+#!/bin/sh
+$MARKER
+# this clone takes no commits
+echo "This clone is read-only: no commits here. Make changes on another machine and pull." >&2
+echo "(git no-commit --remove lifts this block.)" >&2
+exit 1
+EOF
+  chmod +x "$FILE" && echo "Installed $FILE"
+done
+git config pull.ff only && echo "Set pull.ff = only"

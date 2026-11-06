@@ -43,6 +43,11 @@ Specifying *-l* lists the open pull requests instead of checking one out; *-r* s
 *git install-hook \[\<hook-name\>\]*
 <br>Symlink git hooks from the *hooks/* directory of this repository into the current repo's *.git/hooks/*.  With no argument, every executable hook found is installed; with a name, only that hook is installed.  Existing or stale links are replaced.
 
+### git-no-commit
+*git no-commit \[--remove|-r\] \[-h\]*
+<br>Make the current clone take no commits, for a machine that should only ever pull: install *pre-commit* and *pre-merge-commit* hooks that refuse every commit (amends and merges included), and set *pull.ff=only* so a pull can only fast-forward.  A hook already there that it did not install is never replaced or removed (it stops instead, changing nothing), and it will not touch a *core.hooksPath* directory, which other repositories may share.
+*--remove* (*-r*) removes only the hooks it installed.  *git commit --no-verify* still gets past the block; pair it with *git remote set-url --push origin DISABLED* to stop pushes too.
+
 ### git-pre-commit
 *git pre-commit \[args\]*
 <br>Run the current repository's *.git/hooks/pre-commit* hook manually (locates the repo root and executes the hook, passing along any arguments).  Does nothing if no executable pre-commit hook is installed.
