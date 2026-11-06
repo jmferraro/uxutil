@@ -160,20 +160,31 @@ test_hooks_path() {
 }
 
 test_remove() {
-  local OPT
-  for OPT in --remove -r; do
-    repo_new "remove$OPT"
-    run "$GNC"
-    check "installed first" ours pre-commit
-    run "$GNC" "$OPT"
-    check "$OPT: exit 0" rc_is 0
-    check "$OPT: pre-commit removed" absent "$R/.git/hooks/pre-commit"
-    check "$OPT: pre-merge-commit removed" absent "$R/.git/hooks/pre-merge-commit"
-    check "$OPT: says so" out_has "Removed"
-    run git commit -q --allow-empty -m x
-    check "$OPT: commits work again" rc_is 0
-  done
+  repo_new remove
+  run "$GNC"
+  check "installed first" ours pre-commit
+  run "$GNC" --remove
+  check "exit 0" rc_is 0
+  check "pre-commit removed" absent "$R/.git/hooks/pre-commit"
+  check "pre-merge-commit removed" absent "$R/.git/hooks/pre-merge-commit"
+  check "says so" out_has "Removed"
+  run git commit -q --allow-empty -m x
+  check "commits work again" rc_is 0
 }
+
+# --remove has no short form: -r is an unknown option and changes nothing
+test_no_short_remove() {
+  repo_new no_short_remove
+  run "$GNC"
+  run "$GNC" -r
+  check "-r: exit 22" rc_is 22
+  check "-r: unknown option" out_has "Unknown option: '-r'"
+  check "-r: hooks still installed" ours pre-commit
+  run "$GNC" -h
+  check "-h: no -r option in the usage" no_short_r_in_out
+}
+# no -r in the output except inside --remove
+no_short_r_in_out() { ! grep -qE -- '(^|[^-])-r([^[:alnum:]-]|$)' "$T/out"; }
 
 test_remove_keeps_foreign() {
   repo_new remove_keeps_foreign
@@ -207,7 +218,7 @@ test_bad_arguments() {
 TESTS=(
   test_blocks_commits test_blocks_merges test_from_subdir test_idempotent
   test_keeps_existing_pre_commit test_keeps_existing_pre_merge_commit test_keeps_existing_symlink
-  test_hooks_path test_remove test_remove_keeps_foreign test_not_a_repo test_bad_arguments
+  test_hooks_path test_remove test_no_short_remove test_remove_keeps_foreign test_not_a_repo test_bad_arguments
 )
 [[ $# -gt 0 ]] && TESTS=("$@")
 

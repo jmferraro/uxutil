@@ -11,13 +11,13 @@ readonly HOOKS=(pre-commit pre-merge-commit)
 
 usage()
 {
-  echo "Usage: $(basename "$0") [--remove|-r] [-h]"
+  echo "Usage: $(basename "$0") [--remove] [-h]"
   echo "Block commits in the current repository: install pre-commit and pre-merge-commit"
   echo "hooks that refuse every commit, and set pull.ff=only.  A hook already there that"
   echo "this script did not install is never replaced or removed."
   echo "Where:"
-  echo "  --remove, -r : remove the hooks this script installed (pull.ff is left as it is)"
-  echo "  -h           : this help text"
+  echo "  --remove : remove the hooks this script installed (pull.ff is left as it is)"
+  echo "  -h       : this help text"
 }
 
 # ours FILE - succeed if FILE is a hook this script installed
@@ -27,15 +27,15 @@ ours()
 }
 
 unset REMOVE
+# --remove is a long option only, so take it out before getopts sees the rest
 ARGS=()
 for ARG in "$@"; do
-  [[ $ARG == --remove ]] && ARG=-r
+  [[ $ARG == --remove ]] && { REMOVE=1; continue; }
   ARGS+=("$ARG")
 done
 set -- "${ARGS[@]}"
-while getopts :rh OPT; do
+while getopts :h OPT; do
   case $OPT in
-    r) REMOVE=1 ;;
     h) usage; exit ;;
     *) echo "ERROR: Unknown option: '-$OPTARG'"; exit 22 ;;
   esac
