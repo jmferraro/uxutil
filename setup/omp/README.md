@@ -11,12 +11,13 @@ The omp files installed into *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*), and the
 ## Files:
 
 ### commands/do-prompt.md
-*/do-prompt \<prompt_file\> \[sha=\<sha256\>\] \[bullet=\<string\>\] \[plan=\<file\>\[,\<sha256\>\]\] \[review=\<file\>\[,\<sha256\>\]\] \[ref=\<file\>\[,\<sha256\>\]\]...*
+*/do-prompt \<prompt_file\> \[sha=\<sha256\>\] \[bullet=\<string\>\] \[plan=\<file\>\[,\<sha256\>\] \[step=\<N\>\]\] \[review=\<file\>\[,\<sha256\>\]\] \[ref=\<file\>\[,\<sha256\>\]\]...*
+<br>*/do-prompt plan=\<file\>\[,\<sha256\>\] \[step=\<N\>\] \[review=\<file\>\[,\<sha256\>\]\] \[ref=\<file\>\[,\<sha256\>\]\]...*
 <br>The */do-prompt* slash command: it passes its arguments, with any whitespace pasted into them cleaned up, to the *do-prompt* skill below.  Every file in *commands/* is installed as a command, so keep only commands there.
 
 ### skills/do-prompt/SKILL.md
 *(installed as ~/.omp/agent/skills/do-prompt/SKILL.md)*
-<br>The *do-prompt* skill: read an implementation or repair prompt, verify any SHA-256 pins on it and on the plan, review and reference files named, check that the plan is sound and that the prompt is correct and conforms to it, and then execute the prompt only if every check passes; otherwise print the concerns and change nothing.
+<br>The *do-prompt* skill: read an implementation or repair prompt, verify any SHA-256 pins on it and on the plan, review and reference files named, check that the plan is sound and that the prompt is correct and conforms to it, and then execute the prompt only if every check passes; otherwise print the concerns and change nothing.  Given *plan=* without a prompt file, it implements the plan, or with *step=* only that step (phase, section, etc.) of it.  Each step it completes is recorded in *~/.omp/agent/cache/do-prompt/steps*, and before executing a step again it warns that the step was already done and asks whether to revisit it.
 
 ### config.yml
 *(merged into omp's global settings)*

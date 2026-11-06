@@ -1,6 +1,6 @@
 ---
 name: do-prompt
-description: Read an implementation or repair prompt with paste-tolerant whitespace, optionally verify prompt and per-file SHA-256 pins, validate new or changed plans before prompt conformance, and execute only if correct.
+description: Read an implementation or repair prompt (or, given only a plan, implement the plan or one step of it) with paste-tolerant whitespace, optionally verify prompt and per-file SHA-256 pins, validate new or changed plans before prompt conformance, warn before re-executing a step already executed, and execute only if correct.
 ---
 
 # Read, check, execute a prompt
@@ -9,6 +9,8 @@ description: Read an implementation or repair prompt with paste-tolerant whitesp
 
 Read the supplied prompt. Verify that the authority is sensible and accurate; if acceptable, verify that the prompt is correct for the goal it describes and conforms to the overall plan, relevant review findings, and decision/reference files. **If all applicable checks pass, execute the prompt. Otherwise, print the concerns/problems and do not start implementation.** This is conditional authorization to execute, not a request to stop after a successful review and ask for permission again.
 
+When no prompt file is supplied, `plan=` supplies an **implicit prompt: implement the plan** — or, with `step=`, only that step of it. The plan (or the selected step) is then the instructions, checked through the same gates. Executed steps are recorded, and re-executing one requires the user's confirmation.
+
 This workflow also applies to a revised prompt, a new plan revision, a repair/resume prompt, and a request to continue after earlier concerns were addressed. Read the current files; do not substitute remembered contents or assume that a reported revision resolved a concern. Accepted earlier work is the baseline, not permission to execute an inconsistent next step.
 
 Follow higher-priority instructions and repository rules throughout. Do not execute historical prompts merely because they are mentioned.
@@ -16,17 +18,20 @@ Follow higher-priority instructions and repository rules throughout. Do not exec
 ## Invocation
 
 ```text
-/do-prompt <prompt_file> [sha=<sha256>] [bullet=<string>] [plan=<plan_file>[,<sha256>]] [review=<review_file>[,<sha256>]] [ref=<ref_file>[,<sha256>]]...
-/skill:do-prompt <prompt_file> [sha=<sha256>] [bullet=<string>] [plan=<plan_file>[,<sha256>]] [review=<review_file>[,<sha256>]] [ref=<ref_file>[,<sha256>]]...
+/do-prompt <prompt_file> [sha=<sha256>] [bullet=<string>] [plan=<plan_file>[,<sha256>] [step=<N>]] [review=<review_file>[,<sha256>]] [ref=<ref_file>[,<sha256>]]...
+/do-prompt plan=<plan_file>[,<sha256>] [step=<N>] [review=<review_file>[,<sha256>]] [ref=<ref_file>[,<sha256>]]...
+/skill:do-prompt <prompt_file> [sha=<sha256>] [bullet=<string>] [plan=<plan_file>[,<sha256>] [step=<N>]] [review=<review_file>[,<sha256>]] [ref=<ref_file>[,<sha256>]]...
+/skill:do-prompt plan=<plan_file>[,<sha256>] [step=<N>] [review=<review_file>[,<sha256>]] [ref=<ref_file>[,<sha256>]]...
 ```
 
-- After the whitespace normalization below, require exactly one positional prompt file. At most one each of `sha=`, `bullet=`, `plan=` and `review=`; any number of `ref=` arguments. Options may appear in any order. Both plan and review may be supplied.
+- After the whitespace normalization below, allow at most one positional prompt file. It may be omitted only when `plan=` is supplied; the invocation then has the implicit prompt **implement the plan** (with `step=`, only the selected step). At most one each of `sha=`, `bullet=`, `plan=`, `step=` and `review=`; any number of `ref=` arguments. Options may appear in any order. Both plan and review may be supplied. `step=` requires `plan=`. `sha=` and `bullet=` require a prompt file: an implicit prompt has no bytes to pin, and `step=` is what selects part of the plan to implement.
 - Accept single- or double-quoted values containing spaces, including `plan="plans/current plan.md"` and `bullet="42. Existing fastcache debug expectations"`. Split a named argument at its first `=` only. Reject missing/empty or whitespace-only values, duplicate singleton arguments, unknown argument names, and genuine extra positional arguments; explain the usage rather than guessing.
 - `sha=` is an optional full SHA-256 digest of the prompt file: exactly 64 hexadecimal characters, compared case-insensitively. It is not a Git commit/blob identifier or an abbreviated digest; other lengths/algorithms are not inferred.
 - Every file-valued named argument (`plan=`, `review=` and each `ref=`) accepts `filename` or `filename,sha256`. Split at the first `=` for the option name, then at the **last comma** in its value for the optional checksum. No comma means an unpinned filename. A comma requires both a nonempty filename and a full 64-hex-character SHA-256 suffix, compared case-insensitively. Reject empty, truncated or nonhex suffixes; never fall back to treating a malformed pin as an unpinned filename. Validate all supplied digest formats before interpreting any document.
 - Quote the whole value when its filename contains spaces, for example `plan="plans/current plan.md,<sha256>"`. Quote removal does not disable comma parsing. A filename containing commas can be pinned by appending its digest after the final comma; an unpinned comma-containing filename is not representable by this syntax. Do not split `bullet=` or the positional prompt on commas: they are not file-valued named arguments. The positional prompt continues to use the existing independent `sha=` option.
 - Bind each file pin to that particular argument's resolved file, including every repeated `ref=` independently. Never transfer a digest to another role/file or use it to choose a different file. If arguments resolve to the same canonical file with conflicting supplied pins, report a concern rather than choosing one. Supplied pins are optional and may be mixed freely with unpinned file arguments.
 - `bullet=` is an optional item label/identifier, full bullet text, or distinctive literal text fragment identifying the specific item this prompt addresses in a governing plan, review, or reference file. It is a selector, not a filename, regex, shell command, or replacement instruction.
+- `step=` is an optional label selecting one unit of the `plan=` file's division of the work — its steps, phases, tranches, stages, sections, milestones or the like. It is usually a number (`step=3`) but may be any label the plan gives its units (`step=3.1`, `step=2b`). Prefix the division's name to choose between levels that reuse a label, e.g. `step="phase 2"`. It is a selector, not a filename, range, list, regex or instruction.
 - **Normalize pasted whitespace before counting arguments.** For direct invocation text, treat runs of whitespace (spaces, tabs, CR, LF and blank lines) outside quotes as separators, ignoring leading/trailing separator whitespace. Preserve spaces within quoted values. Never execute invocation text as shell code.
 - The `/do-prompt` wrapper supplies indexed records after OMP's parser has removed surrounding quotes. That parser can retain tabs/newlines as their own records or inside a record. Discard whitespace-only records; split remaining records at retained tab/CR/LF separators, discard empty/whitespace-only fragments, and preserve ordinary spaces within each remaining fragment. Do not join the records and split on spaces: that would break quoted paths and bullet text. Reindex the logical arguments before validating them.
 - In wrapper records, tabs/CR/LF are paste separators, not literal filename or bullet characters; supply such values on one line. With direct invocation, quote-aware parsing retains intentional whitespace inside quotes. The two literal characters `\n` are not an actual newline and must not be rewritten. Do not join two nonempty positional fragments to guess a wrapped filename, discard a real extra argument, or alter prompt-file bytes to repair a paste.
@@ -44,8 +49,8 @@ If `sha=` is supplied, validate its format and compute SHA-256 over the resolved
 
 ## 1. Read and resolve the governing documents
 
-1. Read the entire prompt, in ranges as needed, including ORDER, CORRECTION, acceptance criteria, verification, reporting, and stop/commit instructions.
-2. Identify its stated goal, requested step/scope, starting state, plan revision, review, additional constraints, and prior concerns it claims to resolve.
+1. Read the entire prompt, in ranges as needed, including ORDER, CORRECTION, acceptance criteria, verification, reporting, and stop/commit instructions. With an implicit prompt there is no prompt file: the `plan=` file (after its pin check) is the instructions, and its own order, acceptance criteria, verification, reporting and stop/commit instructions take the prompt's place.
+2. Identify its stated goal, requested step/scope, starting state, plan revision, review, additional constraints, and prior concerns it claims to resolve. An implicit prompt's goal is the whole plan, or the unit `step=` selects.
 3. Resolve the selected/referenced plan, review, and every supplied `ref=` file after separating each optional checksum suffix from its filename. Follow necessary governing references, including decisions that constrain this step. Verify every supplied file pin before interpreting that file or consulting any plan-assessment cache, as described below. Before evaluating prompt correctness/conformance, complete the plan gate for every governing plan, whether supplied by `plan=` or discovered in the prompt/references. Read enough current plan text to check dependencies, invariants, non-goals, and compatibility with later steps, not just the next-step heading. Track which documents and revisions govern the work.
 4. A required plan must be supplied with `plan=` if its path cannot be resolved from the prompt/governing documents. A review can instead govern a review-driven repair task without a separate plan, unless the prompt explicitly requires that plan. If both exist, check against both.
 5. A decision/reference file adds constraints; its presence alone is not a waiver of a missing plan/review. An explicitly required but missing or unreadable document is a blocker, even if another authority is available. Locate unambiguous repository-provided information before asking the user; never silently ignore an unavailable input.
@@ -102,6 +107,28 @@ If `bullet=` is supplied, resolve it after reading the governing documents (and 
 
 If `bullet=` is omitted, validate the prompt's full stated scope as before; do not require a selector.
 
+### Resolve the optional step target
+
+If `step=` is supplied, resolve it in the `plan=` file after the plan gate:
+
+1. Identify the plan's division of the work: the units it is to be carried out in, as headings or a top-level ordered list. Background, goals, non-goals, design and other descriptive sections are not units, even when numbered. Match the selector against the units' own labels, ignoring decoration such as `Step`, `Phase`, `#` or a trailing `.`/`:`, case-insensitively; a division name in the selector (`phase 2`) restricts the match to that division. If the units carry no labels, the number is the unit's position in document order, counting from 1.
+2. Require one unambiguous unit. If a label matches at more than one level (`Phase 2` and a `Step 2` restarting within each phase), or a numbered descriptive section could be meant, list the candidates with their headings and request a qualified selector. If nothing matches, report the selector and the plan's units. **Do not execute or guess.**
+3. **If the plan is not divided into units, `step=` cannot be applied:** report that the plan has no steps, and that invoking without `step=` implements the whole plan. Do not execute.
+4. Read the complete unit, its nested items and the plan-wide constraints (invariants, non-goals, conventions, verification rules), which still govern it. The authorized work is that unit only: do not carry out later units, and do not stop short of the unit's own end.
+5. Verify the unit's prerequisites — normally the earlier units it builds on — against the actual current state. Execution records (below) are supporting evidence, not proof. A missing prerequisite is a concern; do not implement it as part of this step.
+6. With a prompt file, `step=` names the unit the prompt is to carry out: verify that the prompt addresses it (as for `bullet=`) and stays within it; a prompt aimed at a different unit is a concern.
+
+### Track executed steps
+
+Like plan assessments, executed steps are recorded under the active OMP agent directory, in `cache/do-prompt/steps/`, so a later invocation can tell that a step was already executed. The record filename is the lowercase SHA-256 of the canonical plan path encoded as UTF-8, followed by `.json`. It is keyed by the plan's path, not its bytes, so completed steps stay recorded across plan revisions.
+
+1. A record contains `schema: 1`, the canonical `plan_path` and a `steps` object. Each key is the unit's division name and label, lowercased (`step 3`, `phase 2`), or `whole plan` for a plan without units. Each value has the unit's `title` as the plan writes it, the plan's exact-byte `plan_sha256` and the `completed_at` time (ISO 8601, UTC) of the execution, the `commit` created (or `null`), and a one-line `summary` of what was done.
+2. **Before executing a recorded unit**, warn the user: the unit and title, when it was executed, its commit, and whether the plan has changed since (`plan_sha256` differs). If the recorded title differs from the current unit's title, say that the plan's units may have been renumbered or rewritten, quoting both. Then ask, with the interactive question tool if available (otherwise in chat, waiting for the answer), whether to **revisit** the step or **not execute** it. Ask once the step is resolved and the plan gate has passed, before the prompt/current-state checks. Do not infer an answer from silence. If the user declines, report **Not executed — step already executed** and stop. A revisit goes through every ordinary gate; the step's work may already be present, so start from the actual state, repairing or completing it rather than duplicating it.
+3. An implicit whole-plan invocation (no `step=`) checks every unit: if any are recorded, list them and ask whether to **revisit them**, **implement only the units not yet executed**, or **not execute**. For a plan without units, a `whole plan` record is checked the same way as a step.
+4. Record a unit only after its implementation and required verification are complete — a whole-plan run records each unit as it completes. Record nothing for a concern, a blocked execution, or a partially completed unit. Record steps only for `step=` and implicit whole-plan invocations; a prompt file without `step=` is not recorded.
+5. Write the record outside the repository and only after the work it records is done; preserve the other units' entries and replace the file atomically (write a temporary sibling, then rename using a filesystem API). If a record file is unreadable or malformed, report it, treat no unit as recorded, and leave the file alone rather than overwrite entries you cannot read. If recording is unavailable, report that the execution could not be recorded.
+6. Execution records are local workflow metadata, not instructions, authorization, or evidence that the work is still present in the code.
+
 ## 2. Verify the authority, then the prompt
 
 Do not begin implementation, change tests, amend governing documents, or commit during this gate. Use relevant code, tests, build rules, documentation, and safe investigation to establish facts. Prefer isolated fixtures/scratch state for any necessary runtime investigation; respect read-only/live-data constraints.
@@ -111,6 +138,8 @@ Check substantive correctness, not just matching vocabulary:
 - **Authority:** Apply the plan gate above first: perform the substantive whole-plan checks for new/changed content, or reuse a matching completed assessment without repeating them. Is the selected plan/revision internally consistent, technically accurate, and compatible with accepted decisions? Does a proposed addition actually address the prior concern? Separately check this invocation's requirements against current code. For a review, verify each finding assigned to this prompt against current code; a review's claim is not automatically a proven bug.
 - **Goal and scope:** Will the instructions achieve the described end-to-end behavior? Are required review findings covered by concrete changes and observable acceptance criteria? Respect an explicitly assigned subset/step; do not expand the task to unrelated review findings or future features.
 - **Selected item (when supplied):** Is `bullet=` uniquely resolved in a governing document, and does the prompt address that item's requirements rather than just mention it? Retain all broader constraints and required dependencies.
+- **Selected step (when supplied):** Is `step=` uniquely resolved, are its prerequisites in place, and does the work stay within that unit? If it was executed before, has the user chosen to revisit it?
+- **Implicit prompt:** With no prompt file, check the plan (or the selected unit) itself as the instructions: concrete enough to implement without inventing requirements, with checkable acceptance/verification criteria. A gap that a prompt would have had to fill is a concern, not licence to improvise. Starting state, sequencing, verification and existing-contract checks apply to it as to a prompt.
 - **Conformance:** Check APIs, precedence, command scope, error order, configuration semantics, output/debug contracts, side effects, non-goals, and migration/caller requirements against all governing constraints. Do not infer permission to narrow or enlarge the task.
 - **Starting state:** Do the named symbols, files, tests, and prerequisites exist as described? Account for already accepted changes and user-owned local edits. A resume must continue from actual state without duplicating completed work or discarding it.
 - **Sequencing:** Can each prescribed intermediate state compile and exercise the intended behavior? Inspect build discovery rules and remaining references before removing a type/API. A compile error caused by deleting a still-referenced error type is not evidence that a behavioral regression test is red.
@@ -136,7 +165,8 @@ Distinguish observed results from predictions. State that implementation did not
 
 Briefly state that the authority and prompt passed validation, identify their paths/revisions and binding references, include the matched bullet path/label and successful SHA-256 checks for every supplied pin, then **execute in the same task without another confirmation**. Recheck every supplied pin against its own file before the first implementation action.
 
-- Follow the specified ORDER, scope, acceptance criteria, reporting requirements, and explicit stop boundaries. Use a task checklist for multi-step work. Do not stop at a phase boundary when authorized work remains.
+- Follow the specified ORDER, scope, acceptance criteria, reporting requirements, and explicit stop boundaries. Use a task checklist for multi-step work. Do not stop at a phase boundary when authorized work remains. With `step=`, the authorized work ends with that unit: do not start the next one.
+- Record each completed unit as described in *Track executed steps*.
 - Preserve user changes, accepted prior work, protected files, and read-only data. Use existing repository conventions. Do not add unrelated cleanup/features or compatibility shims.
 - Follow prescribed red/green sequencing. Keep new behavioral assertions fixed across red/green runs where required, demonstrate requested mutations, and update old expectations only for authorized contract changes. Do not count build failures or unrelated harness errors as valid reds.
 - Verify the significant changed behavior through the actual changed surface or an isolated runtime smoke scenario, plus the specific tests/full gates required by the documents. Do not substitute a narrower check for an explicit gate. Do not rerun user-reported failures merely to confirm them.
@@ -147,8 +177,9 @@ Briefly state that the authority and prompt passed validation, identify their pa
 
 Follow the prompt's requested report format. Otherwise report concisely:
 
-- **Validated and executed**, **Not executed — concerns**, or **Execution blocked** (with exactly what completed and what did not).
-- Governing prompt, plan/review, and decision/reference files; any explicit authority waiver.
+- **Validated and executed**, **Not executed — concerns**, **Not executed — step already executed**, or **Execution blocked** (with exactly what completed and what did not).
+- Governing prompt (or that the prompt was implicit), plan/review, and decision/reference files; any explicit authority waiver.
+- For `step=` or an implicit whole-plan run: the selector and the resolved unit(s) (label and title), any earlier execution record found and the user's choice, and the execution record written (its path) or why none was.
 - Plan-assessment provenance: canonical plan path, exact-byte SHA-256, new/revalidated/reused status, and persistent record path (or the reason caching was unavailable). Distinguish reused plan sanity checks from the prompt/current-code checks performed this time.
 - For every supplied pin (the prompt's `sha=` and each comma-suffixed file argument): identify the role/reference occurrence, resolved file path, algorithm, expected and observed digest, and match/mismatch result (or inability to compute). If `bullet=` was supplied: selector, resolved source path/section/label, and how the prompt addresses it; for unresolved targets, report missing/ambiguous matches.
 - Implemented behavior or concrete concerns, with relevant file/symbol references.
@@ -165,9 +196,13 @@ Follow the prompt's requested report format. Otherwise report concisely:
 /do-prompt tmp/repair-prompt.md review=reviews/cache-review.md bullet="R-4"
 /do-prompt tmp/resume-prompt.md ref=decisions/error-order.md bullet="Preserve error ordering"
 /do-prompt tmp/next-prompt.md
+/do-prompt plan=plans/current.md
+/do-prompt plan=plans/current.md step=3
+/do-prompt plan=plans/current.md,<plan_digest> step="phase 2" ref=decisions/error-order.md
+/do-prompt tmp/step3-prompt.md plan=plans/current.md step=3
 ```
 
-In the last example, discover the governing plan/review from the prompt. If neither is identified, ask the three-way question above; do not execute automatically.
+In `/do-prompt tmp/next-prompt.md`, discover the governing plan/review from the prompt. If neither is identified, ask the three-way question above; do not execute automatically. The `plan=`-only examples implement the whole plan, its step 3, or its phase 2; the last example checks that the prompt carries out step 3. Each records the steps it completes, and asks before re-executing one already recorded.
 
 To pin any file, obtain its exact-byte SHA-256 with `sha256sum -- <filename>`. The positional prompt uses `sha=<prompt_digest>`; named file arguments use a comma suffix. Example invocation shapes (replace each angle-bracketed digest with the complete actual 64-hex value):
 
