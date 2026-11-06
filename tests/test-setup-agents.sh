@@ -351,21 +351,43 @@ test_claude_reconsider_remove() {
   env_new claude_reconsider_remove
   claude_seed
   printf '# mine\ntheme\nCLAUDE.md\nmodelSettings\n' > "$T/setup/claude/config.ignore.txt"
-  # CLAUDE.md (listed) r; effortLevel (not listed) r, which is not offered,
-  # then y; list n; modelSettings.m.effortLevel (listed as modelSettings) i;
-  # theme (listed) r; both skill files y
-  run_with 'r\nr\ny\nn\ni\nr\ny\ny\n' "$T/setup/claude/setup.sh" -fI
+  # CLAUDE.md (listed) r, then y when asked again; effortLevel (not listed) r,
+  # which is not offered, then y; list n; modelSettings.m.effortLevel (listed
+  # as modelSettings) i; theme (listed) r, then y; both skill files y
+  run_with 'r\ny\nr\ny\nn\ni\nr\ny\ny\ny\n' "$T/setup/claude/setup.sh" -fI
   check "exit 0" rc_is 0
   check "r offered for a listed item" out_has "Overwrite $T/home/.claude/CLAUDE.md (listed in config.ignore.txt)? [y/N/i/r]"
   check "r not offered for an unlisted item" out_has 'Set effortLevel = "xhigh" (new)? [y/N/i]'
   check "r refused for an unlisted item" out_has "Please answer y, n or i"
-  check "r made the changes" file_is "$T/home/.claude/CLAUDE.md" "claude rules"
-  check "r and y applied; n and i skipped" json_is "$T/home/.claude/settings.json" \
+  check "r then y made the change" file_is "$T/home/.claude/CLAUDE.md" "claude rules"
+  check "r then y, and y, applied; n and i skipped" json_is "$T/home/.claude/settings.json" \
     '{"theme": "dark", "extra": 1, "list": ["b", "c"], "modelSettings": {"m": {"other": 2}}, "effortLevel": "xhigh"}'
   check "r removed the lines, kept the rest; i added no duplicate" \
     file_is "$T/setup/claude/config.ignore.txt" "$(printf '# mine\nmodelSettings')"
   check "r reported" out_has "No longer ignoring theme (removed from $T/setup/claude/config.ignore.txt)"
   check "i on a covered item reported" out_has "Ignoring modelSettings.m.effortLevel (already listed in"
+}
+
+test_claude_reconsider_r_reasks() {
+  env_new claude_reconsider_r_reasks
+  claude_seed
+  printf '# mine\ntheme\nCLAUDE.md\n' > "$T/setup/claude/config.ignore.txt"
+  # r only stops ignoring, then asks again with just y/N: it never makes the
+  # change by itself.  CLAUDE.md (listed, differs) r, then i (not offered
+  # again), then n; effortLevel n, list n, modelSettings.m.effortLevel n;
+  # theme (listed) r, then y; both skill files n
+  run_with 'r\ni\nn\nn\nn\nn\nr\ny\nn\nn\n' "$T/setup/claude/setup.sh" -fI
+  check "exit 0" rc_is 0
+  check "r asks again with only y/N" out_has "IGNORE REMOVED: prompting again: Overwrite $T/home/.claude/CLAUDE.md? [y/N] "
+  check "i refused when asked again" out_has "Please answer y or n"
+  check "r then n keeps the file" file_is "$T/home/.claude/CLAUDE.md" "mine"
+  check "r then n does not overwrite" out_lacks "Overwrote $T/home/.claude/CLAUDE.md"
+  check "r then y applies the setting" json_is "$T/home/.claude/settings.json" \
+    '{"theme": "dark", "extra": 1, "list": ["b", "c"], "modelSettings": {"m": {"other": 2}}}'
+  check "r removed both lines, kept the rest; refused i added nothing" \
+    file_is "$T/setup/claude/config.ignore.txt" "# mine"
+  check "r reported for the file" out_has "No longer ignoring CLAUDE.md (removed from $T/setup/claude/config.ignore.txt)"
+  check "r reported for the setting" out_has "No longer ignoring theme (removed from $T/setup/claude/config.ignore.txt)"
 }
 
 test_claude_interactive_no_answers() {
@@ -692,7 +714,7 @@ TESTS=(
   test_dispatch_help test_dispatch_unknown_agent test_dispatch_selected_agent test_agent_bad_arguments
   test_claude_fresh test_claude_merge test_claude_force test_claude_dry_run test_claude_idempotent
   test_claude_invalid_settings test_claude_sections test_claude_sections_conflict test_claude_sections_invalid
-  test_claude_ignore test_claude_interactive test_claude_interactive_adds test_claude_reconsider_adds test_claude_reconsider test_claude_reconsider_remove test_claude_interactive_no_answers
+  test_claude_ignore test_claude_interactive test_claude_interactive_adds test_claude_reconsider_adds test_claude_reconsider test_claude_reconsider_remove test_claude_reconsider_r_reasks test_claude_interactive_no_answers
   test_claude_no_sections test_claude_spinner_fresh test_claude_spinner_merge test_claude_spinner_dry_run
   test_codex_fresh test_codex_merge test_codex_existing_table test_codex_force test_codex_dry_run
   test_codex_idempotent test_codex_escaped_quote test_codex_multiline_value_kept test_codex_multiline_string

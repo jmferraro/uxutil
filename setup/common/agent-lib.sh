@@ -205,10 +205,11 @@ remove_ignore() {
 # the input: y makes it (succeeds); n, an empty answer or the end of the input
 # skips it; i skips it and adds NAME (a file by its path under IGNORE_BASE)
 # to config.ignore.txt.  When config.ignore.txt lists NAME (which only -I
-# asks about), the question says so and r is offered as well: it makes the
-# change and removes the lines that list NAME
+# asks about), the question says so and r is offered as well: it removes the
+# lines that list NAME and asks again, prefixed "IGNORE REMOVED: prompting
+# again: ", with only y/N -- r never makes the change by itself
 ask() {
-  local QUESTION="$1" NAME="$2" ANSWER E NOTE="" CHOICES="y/N/i" PLEASE="y, n or i"
+  local QUESTION="$1" NAME="$2" ANSWER E NOTE="" CHOICES="y/N/i" PLEASE="y, n or i" PREFIX="" REASK=""
   local -a LISTED=()
   for E in "${IGNORE_LISTED[@]}"; do
     if [[ $3 == file ]]; then
@@ -224,16 +225,29 @@ ask() {
     PLEASE="y, n, i or r"
   fi
   while :; do
-    printf '%s%s? [%s] ' "$QUESTION" "$NOTE" "$CHOICES" >&2
+    printf '%s%s%s? [%s] ' "$PREFIX" "$QUESTION" "$NOTE" "$CHOICES" >&2
     IFS= read -r ANSWER || { echo >&2; return 1; }
     case $ANSWER in
       y|Y) return 0 ;;
       ''|n|N) return 1 ;;
       i|I)
-        [[ ${#LISTED[@]} -gt 0 ]] && { echo "Ignoring $NAME (already listed in $IGNORE_FILE)"; return 1; }
-        add_ignore "$NAME"
-        return 1 ;;
-      r|R) [[ ${#LISTED[@]} -gt 0 ]] && { remove_ignore "${LISTED[@]}"; return 0; } ;;
+        if [[ -z $REASK ]]; then
+          [[ ${#LISTED[@]} -gt 0 ]] && { echo "Ignoring $NAME (already listed in $IGNORE_FILE)"; return 1; }
+          add_ignore "$NAME"
+          return 1
+        fi ;;
+      r|R)
+        if [[ ${#LISTED[@]} -gt 0 ]]; then
+          # r only stops ignoring NAME: ask again, and only y makes the change
+          remove_ignore "${LISTED[@]}"
+          LISTED=()
+          NOTE=""
+          CHOICES="y/N"
+          PLEASE="y or n"
+          PREFIX="IGNORE REMOVED: prompting again: "
+          REASK=1
+          continue
+        fi ;;
     esac
     echo "Please answer $PLEASE" >&2
   done
