@@ -23,6 +23,7 @@ usage() {
 parse_opts "$@"
 read_ignore "$SRC_DIR/config.ignore.txt" "$DEST_DIR"
 install_file "$SRC_DIR/CLAUDE.md" "$DEST_DIR/CLAUDE.md"
+install_tree "$SRC_DIR/hooks" "$DEST_DIR/hooks"
 merge_json_dir "$SRC_DIR/settings" "$SETTINGS_MASK" "$DEST_DIR/settings.json"
 install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills"
 install_skills "$SRC_DIR/skills" "$DEST_DIR/skills"

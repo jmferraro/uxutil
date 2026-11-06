@@ -15,7 +15,7 @@ Scripts to run after cloning the repository to configure a new machine.  Only th
 
 | Agent | Source | Installed into |
 |---|---|---|
-| *claude* | [*CLAUDE.md*](claude/CLAUDE.md), every *setting_\*.json* in [*settings/*](claude/settings) (combined into one *settings.json*, then merged key by key, needs *jq*) | *~/.claude* (or *$CLAUDE_CONFIG_DIR*) |
+| *claude* | [*CLAUDE.md*](claude/CLAUDE.md), the hooks in [*hooks/*](claude/hooks), every *setting_\*.json* in [*settings/*](claude/settings) (combined into one *settings.json*, then merged key by key, needs *jq*) | *~/.claude* (or *$CLAUDE_CONFIG_DIR*) |
 | *codex* | [*AGENTS.md*](codex/AGENTS.md), [*config.toml*](codex/config.toml) (merged line by line: only *\[table\]* headers and one-line settings) | *~/.codex* (or *$CODEX_HOME*) |
 | *omp* | [*commands/*](omp/commands), [*config.yml*](omp/config.yml) (merged through *omp config*, needs *jq*; skipped if *omp* is not installed) | *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*) |
 

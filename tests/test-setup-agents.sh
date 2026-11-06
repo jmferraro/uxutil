@@ -35,7 +35,7 @@ env_new() {
   rm -f "$T"/setup/*/config.ignore.txt
   [[ -d $REAL_OMP_NATIVES ]] && { mkdir -p "$T/home/.omp"; ln -s "$REAL_OMP_NATIVES" "$T/home/.omp/natives"; }
   [[ $2 == real ]] && return 0
-  rm -rf "$T/setup/omp/commands" "$T/setup/omp/skills" "$T/setup/skills" "$T/setup/claude/settings"
+  rm -rf "$T/setup/omp/commands" "$T/setup/omp/skills" "$T/setup/skills" "$T/setup/claude/settings" "$T/setup/claude/hooks"
   mkdir -p "$T/setup/omp/commands" "$T/setup/omp/skills/ompskill" "$T/setup/skills/gen/ref" "$T/setup/claude/settings"
   printf 'claude rules\n' > "$T/setup/claude/CLAUDE.md"
   printf '{"theme": "dark", "effortLevel": "xhigh", "list": ["a", "b"], "modelSettings": {"m": {"effortLevel": "xhigh"}}}\n' > "$T/setup/claude/settings/setting_general.json"
@@ -456,6 +456,168 @@ test_claude_spinner_dry_run() {
   check "reports the verbs" out_has 'Would add "Fooing" to spinnerVerbs.verbs'
 }
 
+# claude_attribution_setup - give this test's (fixture) setup the real
+# attribution hook and its settings section
+claude_attribution_setup() {
+  cp -R "$REPO_DIR/setup/claude/hooks" "$T/setup/claude/hooks"
+  cp "$REPO_DIR/setup/claude/settings/setting_attribution.json" "$T/setup/claude/settings/"
+}
+# hook_payload COMMAND [CWD] - a PreToolUse event for the Bash tool, shaped
+# like the one Claude Code 2.1.319 sends (captured from a real session)
+hook_payload() {
+  jq -n --arg c "$1" --arg d "${2:-$T}" '{session_id: "s", transcript_path: "/dev/null", cwd: $d,
+    permission_mode: "default", hook_event_name: "PreToolUse", tool_name: "Bash",
+    tool_input: {command: $c, description: "d"}, tool_use_id: "t", effort: "high", prompt_id: "p"}'
+}
+# hook_rc HOOK COMMAND [CWD] - run HOOK on the event for COMMAND; its status
+# to HRC, its stderr to $T/hook.err
+hook_rc() {
+  hook_payload "$2" "$3" > "$T/payload.json"
+  bash "$1" < "$T/payload.json" 2> "$T/hook.err" > /dev/null
+  HRC=$?
+}
+# settings_hook_rc COMMAND - run the hook command settings.json holds (CMD) the
+# way Claude Code does, through a shell, on the event for COMMAND; status to HRC
+settings_hook_rc() {
+  hook_payload "$1" > "$T/payload.json"
+  env -u CLAUDE_CONFIG_DIR HOME="$T/home" sh -c "$CMD" < "$T/payload.json" 2> "$T/hook.err" > /dev/null
+  HRC=$?
+}
+readonly TRAILER='Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
+readonly PR_LINE='🤖 Generated with [Claude Code](https://claude.com/claude-code)'
+ATTRIBUTION_SETTING='{"commit": "", "pr": "", "sessionUrl": false}'
+OUR_HOOK='.matcher == "Bash" and any(.hooks[]; .type == "command" and (.command | contains("hooks/no-attribution.sh")))'
+
+test_claude_attribution_fresh() {
+  env_new claude_attribution_fresh
+  claude_attribution_setup
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "hook installed" cmp -s "$T/setup/claude/hooks/no-attribution.sh" "$T/home/.claude/hooks/no-attribution.sh"
+  # shellcheck disable=SC2016 # $A is a jq variable
+  check "attribution turned off" jq -e --argjson A "$ATTRIBUTION_SETTING" '.attribution == $A' "$T/home/.claude/settings.json"
+  check "PreToolUse hook added for Bash" jq -e ".hooks.PreToolUse | map(select($OUR_HOOK)) | length == 1" "$T/home/.claude/settings.json"
+  # the command settings.json holds must run the installed hook
+  local CMD
+  CMD=$(jq -r ".hooks.PreToolUse[] | select($OUR_HOOK) | .hooks[0].command" "$T/home/.claude/settings.json")
+  settings_hook_rc "git commit -m 'x
+
+$TRAILER'"
+  check "settings command blocks an attributed commit" test "$HRC" -eq 2
+  settings_hook_rc "git commit -m 'plain'"
+  check "settings command allows a plain commit" test "$HRC" -eq 0
+  rm "$T/home/.claude/hooks/no-attribution.sh"
+  settings_hook_rc "git commit -m 'x
+
+$TRAILER'"
+  check "settings command is a no-op when the hook file is missing" test "$HRC" -eq 0
+}
+
+test_claude_attribution_hook() {
+  env_new claude_attribution_hook
+  claude_attribution_setup
+  local H="$T/setup/claude/hooks/no-attribution.sh"
+  printf 'Fix it\n\n%s\n' "$TRAILER" > "$T/msg.txt"
+  printf 'Fix it\n' > "$T/clean.txt"
+  printf 'Body\n\n%s\n' "$PR_LINE" > "$T/body.md"
+  # blocked: attribution in a commit or PR message, inline or in a file
+  hook_rc "$H" "git commit -m 'Fix it
+
+$TRAILER'"
+  check "blocks -m with a Co-Authored-By trailer" test "$HRC" -eq 2
+  check "says why" grep -qi 'attribution' "$T/hook.err"
+  hook_rc "$H" "git commit -F - <<'EOF'
+Fix it
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+EOF"
+  check "blocks a heredoc message" test "$HRC" -eq 2
+  hook_rc "$H" "git -c user.name=t commit -q -F msg.txt"
+  check "blocks -F FILE (git global options before commit)" test "$HRC" -eq 2
+  hook_rc "$H" "git commit --file=msg.txt"
+  check "blocks --file=FILE" test "$HRC" -eq 2
+  hook_rc "$H" "git commit -m 'x
+
+co-authored-by: claude <noreply@anthropic.com>'"
+  check "blocks regardless of case" test "$HRC" -eq 2
+  hook_rc "$H" "gh pr create --title t --body 'Body
+
+$PR_LINE'"
+  check "blocks gh pr create --body" test "$HRC" -eq 2
+  hook_rc "$H" "gh pr edit 3 --body-file body.md"
+  check "blocks gh pr edit --body-file" test "$HRC" -eq 2
+  # every co-author or attribution tag is blocked, whoever it names
+  local TAG
+  for TAG in 'Co-authored-by: Codex <codex@openai.com>' 'Co-authored-by: Copilot <copilot@github.com>' \
+    'Co-Authored-By: Jane Doe <jane@example.com>' 'Co-developed-by: Jane Doe <jane@example.com>' \
+    'Assisted-by: Gemini' 'Generated-by: aider' 'Claude-Session: https://claude.ai/code/session_x'; do
+    hook_rc "$H" "git commit -m 'Fix it
+
+$TAG'"
+    check "blocks '${TAG%%:*}: ${TAG#*: }'" test "$HRC" -eq 2
+  done
+  hook_rc "$H" "git commit -m \$'Fix it\\n\\nCo-authored-by: Codex <codex@openai.com>'"
+  check "blocks a tag inside a one-line \$'...' message" test "$HRC" -eq 2
+  hook_rc "$H" "gh pr create --title t --body 'Body
+
+Generated with [Cursor](https://cursor.com)'"
+  check "blocks another tool's credit line" test "$HRC" -eq 2
+  hook_rc "$H" "gh pr create --title t --body 'Body
+
+🤖 Generated by Codex'"
+  check "blocks a credit line with 'Generated by'" test "$HRC" -eq 2
+  # allowed: no attribution, or not a commit or PR
+  hook_rc "$H" "git commit -m 'Fix it'"
+  check "allows a plain commit" test "$HRC" -eq 0
+  hook_rc "$H" "git commit -F clean.txt"
+  check "allows a plain message file" test "$HRC" -eq 0
+  hook_rc "$H" "git commit -m 'Regenerate the stubs generated with protoc'"
+  check "allows 'generated with' in prose" test "$HRC" -eq 0
+  hook_rc "$H" "git commit -m 'Fix the co-authored-by parser'"
+  check "allows the words without a tag" test "$HRC" -eq 0
+  hook_rc "$H" "git commit -m 'Fix it
+
+Signed-off-by: Joe Ferraro <joe@example.com>'"
+  check "allows a Signed-off-by sign-off" test "$HRC" -eq 0
+  hook_rc "$H" "git cat-file commit HEAD | grep -qiE 'co-authored-by: claude|noreply@anthropic'"
+  check "allows reading a commit and searching it" test "$HRC" -eq 0
+  hook_rc "$H" "git log --all --format=%B | grep -ci 'noreply@anthropic'"
+  check "allows searching the log" test "$HRC" -eq 0
+  hook_rc "$H" "grep -rn '$TRAILER' ."
+  check "allows grep for the trailer" test "$HRC" -eq 0
+  hook_rc "$H" "gh pr view 3 | grep 'Generated with'"
+  check "allows gh pr view" test "$HRC" -eq 0
+  printf '{"tool_name": "Edit", "tool_input": {"file_path": "x"}}' > "$T/payload.json"
+  bash "$H" < "$T/payload.json" 2> /dev/null > /dev/null
+  check "allows an event with no command" test $? -eq 0
+}
+
+test_claude_attribution_keeps_hooks() {
+  env_new claude_attribution_keeps_hooks
+  claude_attribution_setup
+  local SEED='{"theme": "light", "hooks": {
+    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "my-bash-check"}]},
+                   {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "my-edit-check"}]}],
+    "PostToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "my-post"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "my-stop"}]}]}}'
+  mkdir -p "$T/home/.claude/hooks"
+  printf '%s\n' "$SEED" > "$T/home/.claude/settings.json"
+  printf 'my own hook\n' > "$T/home/.claude/hooks/mine.sh"
+  # shellcheck disable=SC2016 # $S is a jq variable
+  local OPT KEPT='(.hooks.PreToolUse[0:2] == $S.hooks.PreToolUse) and (.hooks.PostToolUse == $S.hooks.PostToolUse) and (.hooks.Stop == $S.hooks.Stop)'
+  for OPT in "" -f; do
+    run "$T/setup/claude/setup.sh" $OPT
+    check "${OPT:-plain}: exit 0" rc_is 0
+    check "${OPT:-plain}: other hooks kept, in place" jq -e --argjson S "$SEED" "$KEPT" "$T/home/.claude/settings.json"
+    check "${OPT:-plain}: ours added once, after them" jq -e "(.hooks.PreToolUse | length == 3) and (.hooks.PreToolUse[2] | $OUR_HOOK)" "$T/home/.claude/settings.json"
+    check "${OPT:-plain}: other hook file kept" file_is "$T/home/.claude/hooks/mine.sh" "my own hook"
+  done
+  local BEFORE
+  BEFORE=$(home_sum)
+  run "$T/setup/claude/setup.sh" -f
+  check "again: nothing changed" test "$(home_sum)" == "$BEFORE"
+}
+
 # ---- codex -----------------------------------------------------------------
 
 test_codex_fresh() {
@@ -700,6 +862,7 @@ test_real_files() {
   # the real sections set separate settings, so a plain deep merge models them
   check "settings.json, every section merged in" json_is "$T/home/.claude/settings.json" \
     "$(jq -s 'reduce .[] as $s ({}; . * $s)' "$T/setup/claude/settings/"setting_*.json)"
+  check "attribution hook" cmp -s "$T/setup/claude/hooks/no-attribution.sh" "$T/home/.claude/hooks/no-attribution.sh"
   check "AGENTS.md" cmp -s "$T/setup/codex/AGENTS.md" "$T/home/.codex/AGENTS.md"
   check "config.toml" toml_is "$T/home/.codex/config.toml" \
     "$(python3 -c 'import json, sys, tomllib; print(json.dumps(tomllib.load(open(sys.argv[1], "rb"))))' "$T/setup/codex/config.toml")"
@@ -716,6 +879,7 @@ TESTS=(
   test_claude_invalid_settings test_claude_sections test_claude_sections_conflict test_claude_sections_invalid
   test_claude_ignore test_claude_interactive test_claude_interactive_adds test_claude_reconsider_adds test_claude_reconsider test_claude_reconsider_remove test_claude_reconsider_r_reasks test_claude_interactive_no_answers
   test_claude_no_sections test_claude_spinner_fresh test_claude_spinner_merge test_claude_spinner_dry_run
+  test_claude_attribution_fresh test_claude_attribution_hook test_claude_attribution_keeps_hooks
   test_codex_fresh test_codex_merge test_codex_existing_table test_codex_force test_codex_dry_run
   test_codex_idempotent test_codex_escaped_quote test_codex_multiline_value_kept test_codex_multiline_string
   test_codex_unsupported_source test_codex_ignore test_codex_interactive
