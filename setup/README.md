@@ -37,6 +37,7 @@ $ ./setup-agents.sh -f omp      # updates everything else that differs
 | *-i* | asked | kept, with a warning |
 | *-f* | added | overwritten |
 | *-fi* | asked | asked |
+
 Tested by [*../tests/test-setup-agents.sh*](../tests/README.md#test-setup-agentssh).
 
 ### setup-git.sh
