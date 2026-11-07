@@ -34,6 +34,8 @@ env_new() {
   # this host's own config.ignore.txt files must not leak into the tests
   rm -f "$T"/setup/*/config.ignore.txt
   [[ -d $REAL_OMP_NATIVES ]] && { mkdir -p "$T/home/.omp"; ln -s "$REAL_OMP_NATIVES" "$T/home/.omp/natives"; }
+  # Claude Code's own config, as /config leaves it with "← opens agents" off
+  printf '{"leftArrowOpensAgents": false}\n' > "$T/home/.claude.json"
   [[ $2 == real ]] && return 0
   rm -rf "$T/setup/omp/commands" "$T/setup/omp/skills" "$T/setup/skills" "$T/setup/claude/settings" "$T/setup/claude/hooks"
   mkdir -p "$T/setup/omp/commands" "$T/setup/omp/skills/ompskill" "$T/setup/skills/gen/ref" "$T/setup/claude/settings"
@@ -618,6 +620,56 @@ test_claude_attribution_keeps_hooks() {
   check "again: nothing changed" test "$(home_sum)" == "$BEFORE"
 }
 
+# left_arrow_warning FILE - the start of the warning that FILE does not turn
+# off "← opens agents"
+left_arrow_warning() { echo "Warning: leftArrowOpensAgents is not false in $1"; }
+
+test_claude_left_arrow() {
+  env_new claude_left_arrow
+  local STATE DESC
+  # installed first, so only the warning can keep each run below from being
+  # up to date
+  run "$T/setup/claude/setup.sh"
+  # leftArrowOpensAgents is only ever changed in /config, so each state is
+  # warned about and the file is left exactly as it was
+  for STATE in missing '{}' '{"leftArrowOpensAgents": true}' '{bad'; do
+    [[ $STATE == missing ]] && { rm -f "$T/home/.claude.json"; DESC=missing; } ||
+      { printf '%s\n' "$STATE" > "$T/home/.claude.json"; DESC=$STATE; }
+    run "$T/setup/claude/setup.sh"
+    check "$DESC: exit 0" rc_is 0
+    check "$DESC: warned, naming the file" out_has "$(left_arrow_warning "$T/home/.claude.json")"
+    check "$DESC: points to /config" out_has 'turn off "← opens agents" in /config'
+    check "$DESC: says how to reach it with agent view off" out_has "claude --settings '{\"disableAgentView\":false}'"
+    check "$DESC: not up to date" out_lacks "Claude Code is up to date"
+    [[ $STATE == missing ]] && check "$DESC: not created" test ! -e "$T/home/.claude.json" ||
+      check "$DESC: left as it was" file_is "$T/home/.claude.json" "$STATE"
+  done
+  run "$T/setup/claude/setup.sh" -n
+  check "dry run: warned too" out_has "$(left_arrow_warning "$T/home/.claude.json")"
+  run "$T/setup/setup-agents.sh" claude
+  check "setup-agents.sh: warned" out_has "$(left_arrow_warning "$T/home/.claude.json")"
+  # green control: turned off, nothing is said
+  printf '{"leftArrowOpensAgents": false, "other": 1}\n' > "$T/home/.claude.json"
+  run "$T/setup/claude/setup.sh"
+  check "false: not warned" out_lacks "leftArrowOpensAgents"
+  check "false: up to date" out_has "Claude Code is up to date in $T/home/.claude"
+}
+
+test_claude_left_arrow_config_dir() {
+  env_new claude_left_arrow_config_dir
+  # with CLAUDE_CONFIG_DIR set, Claude Code keeps .claude.json there, not in HOME
+  mkdir -p "$T/cfg"
+  printf '{}\n' > "$T/cfg/.claude.json"
+  run env CLAUDE_CONFIG_DIR="$T/cfg" "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "CLAUDE_CONFIG_DIR's file warned about" out_has "$(left_arrow_warning "$T/cfg/.claude.json")"
+  # green control: off in CLAUDE_CONFIG_DIR, so HOME's file is not consulted
+  printf '{"leftArrowOpensAgents": false}\n' > "$T/cfg/.claude.json"
+  printf '{}\n' > "$T/home/.claude.json"
+  run env CLAUDE_CONFIG_DIR="$T/cfg" "$T/setup/claude/setup.sh"
+  check "off there: not warned" out_lacks "leftArrowOpensAgents"
+}
+
 # ---- codex -----------------------------------------------------------------
 
 test_codex_fresh() {
@@ -880,6 +932,7 @@ TESTS=(
   test_claude_ignore test_claude_interactive test_claude_interactive_adds test_claude_reconsider_adds test_claude_reconsider test_claude_reconsider_remove test_claude_reconsider_r_reasks test_claude_interactive_no_answers
   test_claude_no_sections test_claude_spinner_fresh test_claude_spinner_merge test_claude_spinner_dry_run
   test_claude_attribution_fresh test_claude_attribution_hook test_claude_attribution_keeps_hooks
+  test_claude_left_arrow test_claude_left_arrow_config_dir
   test_codex_fresh test_codex_merge test_codex_existing_table test_codex_force test_codex_dry_run
   test_codex_idempotent test_codex_escaped_quote test_codex_multiline_value_kept test_codex_multiline_string
   test_codex_unsupported_source test_codex_ignore test_codex_interactive
