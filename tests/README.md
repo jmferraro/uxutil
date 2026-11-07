@@ -14,3 +14,8 @@ Needs *jq* and *python3* 3.11+ (its *tomllib* checks the TOML results); the omp 
 *tests/test-git-no-commit.sh \[TEST...\]*
 <br>Tests for [*git-no-commit*](../git/README.md#git-no-commit).  Each test makes a scratch repository with the global and system git config switched off, so nothing outside it is read or touched.  With *TEST* names (e.g. *test_remove*) only those tests run.
 Prints each failing check, with the output of the run that failed, and a summary of the checks passed and failed; the exit status is 0 only if every check passed.
+
+### test-git-alias.sh
+*tests/test-git-alias.sh \[TEST...\]*
+<br>Tests for [*git-alias*](../git/README.md#git-alias).  Each test makes a scratch repository and a user config file of its own, with the real global and system git config switched off, so nothing outside the scratch directory is read or touched.  With *TEST* names (e.g. *test_help_scopes*) only those tests run.
+Prints each failing check, with the output of the run that failed, and a summary of the checks passed and failed; the exit status is 0 only if every check passed.

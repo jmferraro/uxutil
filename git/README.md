@@ -20,7 +20,7 @@ Specifying *-n* performs a dry run (show the command only); *-v* is verbose.
 
 ### git-alias
 *git alias \[--global|--local\] \[\<pattern\> | \<name\> \<command\>\]*
-<br>List, search, or create git aliases.  With no arguments it lists all aliases; with a single argument it shows the aliases matching that pattern; with two arguments it creates an alias.  *--global* / *--local* select the config scope.  (Based on *git-extras*.)
+<br>List, search, or create git aliases.  With no arguments it lists all aliases; with a single argument it shows the aliases matching that pattern; with two arguments it creates an alias, in your user config (*~/.gitconfig*) so it works in every project; *--local* puts it in the current repository's config (*.git/config*) instead.  Listing and searching show the aliases from every config unless *--global* or *--local* picks one.  (Based on *git-extras*.)
 
 ### git-branch-diff
 *git branch-diff \[OPTIONS\] \<branch1\> \<branch2\> -- \<file1\> \[file2...\]*
