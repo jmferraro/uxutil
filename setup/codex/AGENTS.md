@@ -74,7 +74,7 @@ For every reviewed defect:
 - Trace and test the complete production path, including transformations, persistence, rereading, and affected callers.
 - Preserve behavioral RED→GREEN evidence and run the required regression gates against the final source.
 - Use one independent, read-only reviewer, strictly limited to the repair and its interactions. Address findings before handing the work back; escalate only genuine scope or authorization changes.
-- Report each acceptance requirement with its test and observed result. Unrun gates mean pending—not complete.
+- Report each acceptance requirement with its test and observed result. Gates that were not run mean the work is pending, not complete.
 - Do not expand scope, weaken assertions, or change the specification to make the fix pass.
 
 When writing new code:

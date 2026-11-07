@@ -21,7 +21,7 @@ shift $((OPTIND-1))
 
 git rev-parse --show-toplevel &> /dev/null
 RC=$?
-[[ 0 -ne $RC ]] && { echo "FATAL: Does not appear to be a directory using git"; exit $RC; }
+[[ 0 -ne $RC ]] && { echo "FATAL: Does not appear to be a git repository"; exit $RC; }
 
 case $# in
   1) REMOTE=origin; BRANCH=$1 ;;

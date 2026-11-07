@@ -30,7 +30,7 @@
   };
 
   const id = location.pathname.split('/chat/')[1]?.split(/[?#]/)[0];
-  if (!id) throw new Error('Open a https://claude.ai/chat/<uuid> page first.');
+  if (!id) throw new Error('Open an https://claude.ai/chat/<uuid> page first.');
 
   // An account can hold several orgs; an api-only one 404s every chat endpoint.
   // Pick the org that actually advertises "chat" rather than assuming orgs[0].

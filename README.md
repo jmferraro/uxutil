@@ -24,7 +24,7 @@ Notable options: *-a* include thinking and tool_use/tool_result blocks (default 
 
 Saving a long conversation from the browser does not work — *claude.ai* virtualizes the message list, so *Save Page As* and *Print* only capture the turns currently mounted in the DOM.  The full transcript arrives in a single JSON request, so there are two ways to get at it:
 
-* **Whole account:** *Settings &rarr; Privacy &rarr; Export data*.  The emailed download link **expires 24 hours after delivery**, there is no published SLA on generation time, and deleted conversations are not included.  Unzip and run *claude2md* over *conversations.json*.
+* **Whole account:** *Settings &rarr; Privacy &rarr; Export data*.  The emailed download link **expires 24 hours after delivery**; there is no published SLA on generation time, and deleted conversations are not included.  Unzip and run *claude2md* over *conversations.json*.
 * **One conversation:** paste [*misc/claude-fetch.js*](misc/claude-fetch.js) into the browser console on the open chat.  A same-origin *fetch* sends the session cookie automatically, so nothing is extracted or stored and no public */share/* link is created.  It downloads JSON for *claude2md*.
 
 Note that neither route carries the *bytes* of uploaded attachments or of files generated in-session — only references.  *claude2md* lists their filenames under each message so the gap is at least visible.  A conversation fetched with *tree=True* contains abandoned edit/regenerate branches; *claude2md* walks *current_leaf_message_uuid* back to the root to emit only the live thread, falling back to chronological order for exports (which drop the parent links).
@@ -142,8 +142,8 @@ Specify *-q* to suppress that warning (useful when calling it from *PROMPT_COMMA
 <br>*cat* the specified file to the console, prepending the line number and hash of the line.
 The default behavior is to compute the hash for each line independently
 By specifying the *-c* option, the cumulative hash for the file will be displayed at each line instead
-specifying *-w* will cause the hash computation to ignore all leading and trailing whitespace
-specifying *-W* will produce the same hash computation but the whitespace will also be stripped from the output of the file
+Specifying *-w* will cause the hash computation to ignore all leading and trailing whitespace
+Specifying *-W* will produce the same hash computation but the whitespace will also be stripped from the output of the file
 By default *hashcat* will use *shasum* to compute the hashes.  If it cannot be found, it will use *md5sum*.
 The use of *md5sum* can be forced by specifying the *-m* command line option.
 
@@ -178,7 +178,7 @@ There are more characters to type but using *torl* is more flexible since it can
 ### notes
 *notes \[-e|E\] \[-l\] \<string\>*
 <br>If run without an argument, it will produce a list of all notes found
-If an argument is given, will:
+If an argument is given, it will:
 * search for a note with the specified name
 * search the contents of all notes for a matching string
 
@@ -241,7 +241,7 @@ The file is renamed to the stamped name unless *-k* is given, which copies it to
 Notable options: *-A* always display the output (even on success), and *-o file* save the output to *file* (which, unlike the default temporary file, is not deleted).
 By default the output is captured in a temporary file (under *~/tmp* if that directory can be used, otherwise */tmp*) that is removed once the command completes.
 <br>Used in the deprecated pipe form (*cmd | torl*) it prints a warning and -- since a piped reader cannot see the upstream command's exit status -- treats the captured input as a failure so the output is still displayed.
-<br>(The name comes from: 'Tee OR Less')
+<br>(The name comes from 'Tee OR Less')
 
 ### uxrgrep
 Perform a recursive grep (fgrep, grep, or egrep) starting with the specified location using the specified options.
@@ -266,7 +266,7 @@ It prefers *find -print0 | xargs -0*, falling back to *find -exec ... +* and the
 <br>Exit status is 0 if any match was printed, 1 if none (a match found only inside a binary file is reported on stderr and does not count), 2 if *path* does not exist, and 22 for a usage error.
 
 ### vimln
-Given an input of source:line or source:line:column, will start vim and position the cursor at the specified location.
+Given an input of source:line or source:line:column, it will start vim and position the cursor at the specified location.
 
 ### x2d
 *x2d \<num1\> \[num2\]...*

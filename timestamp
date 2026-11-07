@@ -76,7 +76,7 @@ while [[ $# -ne 0 ]]; do
     continue
   fi
 
-  # stat format %Y doesn't give nanoseconds: use & parse output from %y (human readable)
+  # stat format %Y doesn't give nanoseconds: use and parse output from %y (human readable)
   # macOS stat/date cannot provide nanoseconds
   if [[ -n $USE_BSD_STAT ]]; then
     EPOCH=$(stat -f "%m" "$1")

@@ -146,7 +146,7 @@ if has('gui_running')
    " different colorscheme, which defaults to reverse video
    colorscheme ferraro
    " trap all ctrl-z to avoid losing the session
-   " could just run shell, but running ! will get the point across
+   " could just run a shell, but running ! will get the point across
    " a better solution would be to run in restricted mode: -Z
    " " e.g. alias gvim='gvim -Z'
    nnoremap <C-z> :!echo "Can't suspend GVIM"<CR>

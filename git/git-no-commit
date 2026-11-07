@@ -43,7 +43,7 @@ done
 shift $((OPTIND-1))
 [[ $# -ne 0 ]] && { echo "Invalid command line"; exit 22; }
 
-git rev-parse --git-dir &> /dev/null || { echo "FATAL: Does not appear to be a directory using git"; exit 2; }
+git rev-parse --git-dir &> /dev/null || { echo "FATAL: Does not appear to be a git repository"; exit 2; }
 # a core.hooksPath directory may be shared by other repositories
 HOOKS_PATH=$(git config --get core.hooksPath)
 [[ -n $HOOKS_PATH ]] && { echo "FATAL: core.hooksPath is set ($HOOKS_PATH); its hooks may be shared with other repositories, so they are left alone"; exit 2; }

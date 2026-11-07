@@ -99,7 +99,7 @@ def message($all):
     + (if ($body | length) > 0 then $body else "*(no renderable content)*" end)
     + ($m | refs);
 
-# tree=True fetches return the whole DAG, including abandoned edit/regen
+# tree=True fetches return the whole DAG, including abandoned edit/regenerate
 # branches, so walk the leaf back to the root.  The official export drops
 # parent_message_uuid, in which case fall back to chronological order.
 def thread:

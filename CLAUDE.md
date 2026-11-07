@@ -21,7 +21,7 @@ This is a collection of personal shell utilities and configuration files develop
 - **sponge**: Bash implementation of the sponge command for safe in-place file editing
 
 ### File Comparison and Search
-- **cmp-dirs**: Compare the files at the top level of two directories (not recursive), can invoke tkdiff/meld for differences
+- **cmp-dirs**: Compare the files at the top level of two directories (not recursive) and can invoke tkdiff/meld for differences
 - **ffind**: Find files by pattern, excludes 'install' directories by default
 - **subgrep**: Search all subdirectories for strings with optional file filtering; uses `grep -r` where available, else falls back to `uxrgrep`
 

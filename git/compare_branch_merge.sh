@@ -247,7 +247,7 @@ fi
 if [[ $VERBOSE -eq 0 && ($UNEXPECTED_COUNT -gt 0 || $ONLY_SOURCE_COUNT -gt 0) ]]; then
     echo
     echo -e "${CYN}Detailed file lists saved in: $TMP_DIR${NON}"
-    echo "Files will be automatically cleaned up when script exits."
+    echo "Files will be automatically cleaned up when the script exits."
     echo "Re-run with --verbose to see all files in output."
 fi
 

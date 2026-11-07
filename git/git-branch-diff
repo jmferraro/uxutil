@@ -7,7 +7,7 @@ usage()
   echo "Usage: $PGM [OPTIONS] <branch1> <branch2> -- <file1> [file2...]"
   echo "Where OPTIONS:"
   echo "  -s : show the differences"
-  echo "  -v : increase verbosity (more for more verbose)"
+  echo "  -v : increase verbosity (repeat -v for more verbosity)"
   echo "  -h : this help text"
 }
 

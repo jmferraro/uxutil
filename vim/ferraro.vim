@@ -1,9 +1,9 @@
 " Vim color file
 
-" This is almost all defaults, it just sets the background to dark
+" This is almost all defaults; it just sets the background to dark
 " Set all the color options back to the default and then just override the
 " ones we want
-" look at the default.vim colorscheme for more details
+" Look at the default.vim colorscheme for more details
 hi clear Normal
 set bg&
 hi clear
