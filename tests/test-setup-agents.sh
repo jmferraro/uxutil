@@ -626,23 +626,26 @@ left_arrow_warning() { echo "Warning: leftArrowOpensAgents is not false in $1"; 
 
 test_claude_left_arrow() {
   env_new claude_left_arrow
-  local STATE DESC
+  local STATE
   # installed first, so only the warning can keep each run below from being
   # up to date
   run "$T/setup/claude/setup.sh"
   # leftArrowOpensAgents is only ever changed in /config, so each state is
   # warned about and the file is left exactly as it was
   for STATE in missing '{}' '{"leftArrowOpensAgents": true}' '{bad'; do
-    [[ $STATE == missing ]] && { rm -f "$T/home/.claude.json"; DESC=missing; } ||
-      { printf '%s\n' "$STATE" > "$T/home/.claude.json"; DESC=$STATE; }
+    rm -f "$T/home/.claude.json"
+    [[ $STATE == missing ]] || printf '%s\n' "$STATE" > "$T/home/.claude.json"
     run "$T/setup/claude/setup.sh"
-    check "$DESC: exit 0" rc_is 0
-    check "$DESC: warned, naming the file" out_has "$(left_arrow_warning "$T/home/.claude.json")"
-    check "$DESC: points to /config" out_has 'turn off "← opens agents" in /config'
-    check "$DESC: says how to reach it with agent view off" out_has "claude --settings '{\"disableAgentView\":false}'"
-    check "$DESC: not up to date" out_lacks "Claude Code is up to date"
-    [[ $STATE == missing ]] && check "$DESC: not created" test ! -e "$T/home/.claude.json" ||
-      check "$DESC: left as it was" file_is "$T/home/.claude.json" "$STATE"
+    check "$STATE: exit 0" rc_is 0
+    check "$STATE: warned, naming the file" out_has "$(left_arrow_warning "$T/home/.claude.json")"
+    check "$STATE: points to /config" out_has 'turn off "← opens agents" in /config'
+    check "$STATE: says how to reach it with agent view off" out_has "claude --settings '{\"disableAgentView\":false}'"
+    check "$STATE: not up to date" out_lacks "Claude Code is up to date"
+    if [[ $STATE == missing ]]; then
+      check "$STATE: not created" test ! -e "$T/home/.claude.json"
+    else
+      check "$STATE: left as it was" file_is "$T/home/.claude.json" "$STATE"
+    fi
   done
   run "$T/setup/claude/setup.sh" -n
   check "dry run: warned too" out_has "$(left_arrow_warning "$T/home/.claude.json")"
