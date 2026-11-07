@@ -106,7 +106,9 @@ trap 'rm -f "${TMPFILE}"' EXIT
 
 ## Testing Approach
 
-No formal test framework is used. Testing is typically done manually by:
+While not required for these utilities, some have plain bash test scripts in `tests/`, run directly from the checkout (for example `tests/test-setup-agents.sh` and `tests/test-git-alias.sh`). Each uses a scratch directory and HOME so the real home directory is never touched; a `TEST...` argument runs only the named tests. Changes to a tested utility should be checked against its test script.
+
+Otherwise, testing is typically done manually by:
 - Running utilities with various input combinations
 - Testing edge cases and error conditions
 - Verifying behavior in different terminal environments
