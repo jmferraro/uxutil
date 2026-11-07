@@ -6,7 +6,7 @@ usage()
 {
   arg0=$(basename $0)
   echo "Usage:"
-  echo "  $arg0 [-f] [-v] [-r <remote>] <pull request number>"
+  echo "  $arg0 [-f] [-l] [-r <remote>] [-v] <pull request number>"
   echo "Where:"
   echo "  -f        : force the checkout"
   echo "  -l        : list PRs"
@@ -20,6 +20,14 @@ fatal()
   local NRM="\033[0m"
   printf '%bERROR: %s%b\n' "${RED}" "$1" "${NRM}"
   exit 22
+}
+
+# github_hint <remote> <gh command> - fatal if the remote publishes GitHub-style
+# pull request refs (refs/pull/<N>/head) instead of Bitbucket's
+github_hint()
+{
+  git ls-remote --exit-code "$1" 'refs/pull/*/head' &> /dev/null || return 0
+  fatal "remote $OPT_REMOTE looks like GitHub (refs/pull/*); use the gh CLI instead: $2"
 }
 
 # parse options
@@ -41,8 +49,12 @@ shift $((OPTIND-1))
 if [[ -n $OPT_LIST ]]; then
   [[ $# -ne 0 ]] && fatal "Invalid command line"
   # get the list of pull requests from the remote: NOTE the default delimiter for cut is TAB
-  mapfile -t PRS < <(git ls-remote $OPT_REMOTE --refs main 'pull-requests/*from' | cut -f2 | cut -f3 -d'/' | sort -n)
-  [[ 0 -eq ${#PRS[@]} ]] && { echo "No pull requests found"; exit; }
+  mapfile -t PRS < <(git ls-remote --refs $OPT_REMOTE 'pull-requests/*from' | cut -f2 | cut -f3 -d'/' | sort -n)
+  if [[ 0 -eq ${#PRS[@]} ]]; then
+    github_hint "$OPT_REMOTE" "gh pr list"
+    echo "No pull requests found"
+    exit
+  fi
   echo "Pull Requests for remote $OPT_REMOTE:"
   for NUM in ${PRS[@]}; do
     echo $NUM
@@ -65,9 +77,11 @@ RC=$?
 git fetch --tags --progress $URL refs/pull-requests/*:refs/remotes/${OPT_REMOTE}/pull-requests/*
 
 # try to get the commit id of the PR
-COMMIT_ID=$(git rev-parse refs/remotes/${OPT_REMOTE}/pull-requests/$1/from^{commit})
-RC=$?
-[[ 0 != $RC || -z $COMMIT_ID ]] && exit
+COMMIT_ID=$(git rev-parse --verify --quiet "refs/remotes/${OPT_REMOTE}/pull-requests/$1/from^{commit}")
+if [[ -z $COMMIT_ID ]]; then
+  github_hint "$URL" "gh pr checkout $1"
+  fatal "pull request $1 not found on remote $OPT_REMOTE"
+fi
 [[ 1 == $OPT_VERBOSE ]] && echo "pulling commit id: $COMMIT_ID"
 
 exec git checkout $OPT_FORCE $COMMIT_ID

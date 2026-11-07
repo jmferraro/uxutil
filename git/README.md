@@ -1,6 +1,6 @@
 # UXUTIL/GIT
 
-Utilities I've developed specifically for git.  As with the general utilities above, I use many of them daily.
+Utilities I've developed specifically for git.  I use many of them daily.
 
 Most follow the `git-<command>` convention, so with the *git/* directory in your *PATH* they can be run either directly (e.g. *git-who*) or as a git subcommand (e.g. *git who*).
 
@@ -30,6 +30,7 @@ Specifying *-n* performs a dry run (show the command only); *-v* is verbose.
 *git checkout-pr \[-f\] \[-l\] \[-r \<remote\>\] \[-v\] \<pull request number\>*
 <br>Fetch and check out a pull request by number (Bitbucket-style *refs/pull-requests/*).
 Specifying *-l* lists the open pull requests instead of checking one out; *-r* selects the remote (default *origin*); *-f* forces the checkout; *-v* is verbose.
+GitHub publishes pull requests differently (*refs/pull/*), so on a GitHub remote it stops and recommends the *gh* CLI instead (*gh pr checkout \<number\>*, *gh pr list*).
 
 ### git-editors
 *git editors \<file\> \[file...\]*

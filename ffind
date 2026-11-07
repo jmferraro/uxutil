@@ -3,7 +3,7 @@
 usage()
 {
   local PGM=$(basename $0)
-  echo "Usage: [OPTS] <pattern>"
+  echo "Usage: $PGM [OPTS] <pattern>"
   echo "where OPTS:"
   echo "  -I      : do *NOT* exclude 'install' dirs"
   echo "  -i      : case-insensitive match (uses -iname instead of -name)"

@@ -79,7 +79,7 @@ For every reviewed defect:
 
 When writing new code:
 - DO verify the implemented code is complete and functions properly before stating that the implementation is complete and the provided prompt is satisfied
-- do NOT declare non functioning, incorrect code as complete
+- do NOT declare non-functioning, incorrect code as complete
 - do NOT declare code is functioning and complete without testing it first
 - do NOT declare code is complete and correct just to be sycophantic
 
@@ -101,7 +101,7 @@ allowing the re-review to concentrate only on changed files.
 
 Rules for every CODE RE-REVIEW:
 A re-review examines code changes introduced to fix defects found in an earlier
-code review. Every rule under "Every code review" applies, plus:
+code review. Every rule under "Rules for every CODE REVIEW" applies, plus:
 
 - THE PROPOSED FIX MUST ***ONLY*** INCLUDE FIXES FOR THE BUGS FOUND IN THE CODE SINCE THE LAST REVIEW.
 

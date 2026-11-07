@@ -103,8 +103,8 @@ done
 
 if [[ "--all" != "$1" ]]; then
   # check both mod & cached
-  # if the file is both ccached (staged) and modified, this is likely an ovesight
-  # the contents ofthe modifed file will be checked, but the version staged will be committed
+  # if the file is both cached (staged) and modified, this is likely an oversight
+  # the contents of the modified file will be checked, but the version staged will be committed
   mapfile -t MODLIST < <(git diff --name-status | awk -F'\t' '$1 != "D" { print $2 }')
   mapfile -t BOTH < <(comm -12 <(for FN in "${FILES[@]}"; do echo "${FN}"; done|sort) <(for FN in "${MODLIST[@]}"; do echo "${FN}"; done|sort))
   for FN in "${BOTH[@]}"; do
@@ -113,7 +113,7 @@ if [[ "--all" != "$1" ]]; then
   done
 fi
 
-# exit ith number of failures
+# exit with number of failures
 if [[ $RET -gt 0 ]]; then
   echo "pre-commit hook failed, failure count: $RET"
   exit $RET

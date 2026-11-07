@@ -2,7 +2,7 @@
 
 usage()
 {
-  echo "Usage: $(basename $0) [options] [remote] <branch>"
+  echo "Usage: $(basename $0) [OPTIONS] [remote] <branch>"
   echo "Where OPTIONS:"
   echo "  -v : verbose output"
   echo "  -h : this help text"
@@ -14,7 +14,7 @@ do
   case "$opt" in
     v) VERBOSE=1 ;;
     h) usage; exit ;;
-    *) echo "ERROR: Unkown argument: '-$OPTARG'"; exit 22 ;;
+    *) echo "ERROR: Unknown argument: '-$OPTARG'"; exit 22 ;;
   esac
 done
 shift $((OPTIND-1))
@@ -42,7 +42,7 @@ done
 [[ -n $VERBOSE ]] && echo "git branch --track ${BRANCH} ${REMOTE}/${BRANCH}"
 git branch --track ${BRANCH} ${REMOTE}/${BRANCH}
 RC=$?
-[[ 0 -ne $RC ]] && { echo "FATAL: Unable to reack remote branch: ${REMOTE}/${BRANCH}"; exit $RC; }
+[[ 0 -ne $RC ]] && { echo "FATAL: Unable to track remote branch: ${REMOTE}/${BRANCH}"; exit $RC; }
 
 # branch has been tracked; checkout the code
 [[ -n $VERBOSE ]] && set -x

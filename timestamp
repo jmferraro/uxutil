@@ -37,11 +37,12 @@ if [[ $# -eq 0 ]]; then
   unset ERR
   [[ -n $OPT_C ]] && ERR=c
   [[ -n $OPT_K ]] && ERR=k
+  [[ -n $OPT_Q ]] && ERR=q
   [[ -n $OPT_S ]] && ERR=s
   [[ -n $ERR ]] && { echo "ERROR: option -$ERR requires at least one file"; exit 22; }
 fi
 
-# options c, k requires option s
+# options c, k require option s
 if [[ -z $OPT_S ]]; then
   unset ERR
   [[ -n $OPT_C ]] && ERR=c
@@ -52,9 +53,9 @@ fi
 # -q excludes -s
 [[ $OPT_Q && $OPT_S ]] && { echo "ERROR: -q excludes -s"; exit 22; }
 
-# files(s) specified w/o file oriented options?
+# file(s) specified w/o file oriented options?
 if [[ 0 -ne $# && 0 -eq $((OPT_C+OPT_K+OPT_Q+OPT_S)) ]]; then
-  echo "File(s) specified with out any of options: -c, -k, -q, -s"
+  echo "File(s) specified without any of the options: -c, -k, -q, -s"
   exit 22
 fi
 

@@ -7,7 +7,7 @@ usage()
   PGM=$(basename $0)
   echo "Usage: $PGM [OPTIONS] <dir1> <dir2>"
   echo "Where OPTIONS:"
-  echo "  -p pgm : use PGM to display differences (default: $CMD)"
+  echo "  -p pgm : use pgm to display differences (default: $CMD)"
   echo "  -v     : verbose mode"
   echo "  -x     : extended output"
   echo "  -h     : this help text"
@@ -73,7 +73,7 @@ DIR1=$1
 DIR2=$2
 
 [[ ! -d $DIR1 ]] && { echo "ERROR: the specified directory does not exist: $DIR1"; exit 2; }
-[[ ! -d $DIR2 ]] && { echo "ERROR: the specified directoey does not exist: $DIR2"; exit 2; }
+[[ ! -d $DIR2 ]] && { echo "ERROR: the specified directory does not exist: $DIR2"; exit 2; }
 
 # get the differences
 mapfile -t RESULTS < <(comm  --output-delimiter='|'\

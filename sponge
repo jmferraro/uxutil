@@ -2,7 +2,7 @@
 
 usage()
 {
-  echo "Usage: [-a|h] $(basename "$0") <file>"
+  echo "Usage: $(basename "$0") [-a|h] [file]"
   echo "Where:"
   echo "  -a : append to output file (default: overwrite)"
   echo "  -h : this help text"

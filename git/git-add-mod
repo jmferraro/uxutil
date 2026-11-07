@@ -25,7 +25,7 @@ unset DIR_NAME
 [[ 1 -eq $# && '.' == "$1" ]] && { DIR_NAME='.'; shift; }
 [[ 0 -ne $# ]] && { echo "Invalid command line"; exit 22; }
 
-# get the the status of the files from git
+# get the status of the files from git
 mapfile -t STATUS < <(git status --porcelain $DIR_NAME)
 
 # filter out the modified files that have not already been added
@@ -36,7 +36,7 @@ for ITM in "${STATUS[@]}"; do
   fi
 done
 
-# status --porcelain shows the files relative to the root of he project
+# status --porcelain shows the files relative to the root of the project
 # cd to that location and add the files from there
 cd ./$(git rev-parse --show-cdup)
 [[ 0 -ne $? ]] && { echo "Unable to find top of git tree"; exit 2; }

@@ -5,7 +5,7 @@
 if [[ 1 -eq $# ]]; then
   exec git blame --porcelain $1 | grep '^author ' | cut -f2- -d' ' | sort -u
 else
-  # for multi—fiie, keep appending to an array
+  # for multi-file, keep appending to an array
   WHO=()
   while [[ $# -gt 0 ]]; do
     echo "Processing file: $1"

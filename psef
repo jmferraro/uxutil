@@ -2,7 +2,7 @@
 
 usage()
 {
-  echo "Usage: $(basename "$0") [-h] <arg1> [arg2..]"
+  echo "Usage: $(basename "$0") [-h] <arg1> [arg2...]"
   echo "Where:"
   echo "  -h : This help text"
 }

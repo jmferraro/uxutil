@@ -5,7 +5,7 @@
 # https://github.com/ThomasDickey/xterm-snapshots/blob/master/XTerm-col.ad
 # https://github.com/ThomasDickey/xterm-snapshots/blob/master/256colres.pl
 
-print("colors 0-16 correspond to the ANSI and aixterm naming")
+print("colors 0-15 correspond to the ANSI and aixterm naming")
 for code in range(0, 16):
     if code > 8:
         level = 255

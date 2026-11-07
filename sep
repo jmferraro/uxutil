@@ -6,7 +6,7 @@ usage()
   echo "Usage: $PGM [OPTS] <char>"
   echo "Where OPTS:"
   echo "  -[0-9]+ : specify line count"
-  echo "  -C      : do NOT change dolors for output"
+  echo "  -C      : do NOT change colors for output"
   echo "  -/      : half the screen"
   echo "  -h      : this help text"
 }
@@ -27,7 +27,7 @@ shift $((OPTIND-1))
 #echo "CMDLINES: $CMDLINES"
 [[ -z $NO_COLOR ]] && echo -en "\033[1;37m"
 
-# / and numbers mutally exclusive
+# / and numbers mutually exclusive
 [[ -n $HALF && -n $NUM ]] && { echo "FATAL: count and half cannot be specified together"; exit 22; }
 
 # at most 1 argument (other than options)

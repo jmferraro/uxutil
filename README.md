@@ -1,6 +1,6 @@
 # UXUTIL
 
-A collection of open source utilities and file I've developed over the years.  I use many of them daily.  Some are quick implementations of utilities provided by other (installable) packages that I might not be able to access at wherever I might be working (e.g. *sponge*)
+A collection of open source utilities and files I've developed over the years.  I use many of them daily.  Some are quick implementations of utilities provided by other (installable) packages that I might not be able to access wherever I might be working (e.g. *sponge*)
 
 This README covers the utilities in this directory.  The rest are grouped into sub-directories, each with a README describing its contents:
 * [*doc/*](doc/README.md) -- plain-text notes: setting up a new Ubuntu machine, other desktop environments, and some color values
@@ -22,7 +22,7 @@ This README covers the utilities in this directory.  The rest are grouped into s
 <br>Convert *claude.ai* conversation JSON into readable markdown transcripts.  Accepts either a whole-account *conversations.json* (a JSON array) or a single conversation (a JSON object); with *-d* it writes one *&lt;date&gt;-&lt;title&gt;-&lt;uuid8&gt;.md* per conversation, otherwise it writes to stdout.
 Notable options: *-a* include thinking and tool_use/tool_result blocks (default is message text only), *-l* list conversations without writing, and *-s* restrict to titles matching a case-insensitive regex.  Requires *jq*.
 
-Saving a long conversation from the browser does not work — *claude.ai* virtualises the message list, so *Save Page As* and *Print* only capture the turns currently mounted in the DOM.  The full transcript arrives in a single JSON request, so there are two ways to get at it:
+Saving a long conversation from the browser does not work — *claude.ai* virtualizes the message list, so *Save Page As* and *Print* only capture the turns currently mounted in the DOM.  The full transcript arrives in a single JSON request, so there are two ways to get at it:
 
 * **Whole account:** *Settings &rarr; Privacy &rarr; Export data*.  The emailed download link **expires 24 hours after delivery**, there is no published SLA on generation time, and deleted conversations are not included.  Unzip and run *claude2md* over *conversations.json*.
 * **One conversation:** paste [*misc/claude-fetch.js*](misc/claude-fetch.js) into the browser console on the open chat.  A same-origin *fetch* sends the session cookie automatically, so nothing is extracted or stored and no public */share/* link is created.  It downloads JSON for *claude2md*.
@@ -33,7 +33,7 @@ Very large exports are read into memory by *jq* in one pass; a multi-hundred-MB 
 ### cleandup
 *cleandup \[options\] \[dir1 dir2\]*
 <br>Delete files from *dir2* that are identical to files in *dir1*, recursing by default and removing any *dir2* directories that become empty.  A file that is a hard link to its *dir1* counterpart is left alone, so the only copy is never removed.  With no directories given, *dir1* defaults to the parent directory (*..*) and *dir2* to the current directory (with recursion disabled).
-Notable options: *-n* dry run (show what would be deleted), *-B* delete both copies, *-R* do not recurse, *--no_hdr* ignore RCS *$Header*/*$Id* lines when comparing, and *-v* verbose.
+Notable options: *-n* dry run (show what would be deleted), *-B* delete both copies, *-R* do not recurse, *--no-hdr* ignore RCS *$Header*/*$Id* lines when comparing, and *-v* verbose.
 
 ### cleandup.rb
 *cleandup.rb \[options\] \[dir1 dir2\]*
@@ -72,7 +72,7 @@ $ dumppath
 <br>Search all subdirectories for a file matching the specified pattern.
 ```
 $ ffind -h
-Usage: [OPTS] <pattern>
+Usage: ffind [OPTS] <pattern>
 where OPTS:
   -I      : do *NOT* exclude 'install' dirs
   -i      : case-insensitive match (uses -iname instead of -name)
@@ -84,12 +84,12 @@ where OPTS:
 ```
 The *-I* option is included since many build systems (particularly when building library code) place a copy of the source in an *'install'* directory somewhere in the project tree -- usually parallel to the source.
 This can result in a situation where when looking for source to fix a problem using *ffind*, the result may be the copy in the 'install' directory.
-Issuing a command like: `vi $(which ffind *file*)` may result in editing the install version, which would disappear after the next clean build.
+Issuing a command like: `vi $(ffind *file*)` may result in editing the install version, which would disappear after the next clean build.
 <br>By default *find*'s own error output -- most often *Permission denied* noise, which is common on a Mac even within *$HOME* -- is redirected to */dev/null*; pass *-E* to let those errors through.  The *-w* option saves typing the surrounding wildcards, so *ffind -w foo* searches for *\*foo\**.
 
 ### filediff
 *filediff \[-v\] \<file1\> \<dir|file2\>*
-<br>Will indicate whether there are differences in the specified input files. (running diff will not produce output if there are not differences and visual confirmation may be desired)
+<br>Will indicate whether there are differences in the specified input files. (running diff will not produce output if there are no differences and visual confirmation may be desired)
 If the second argument is a directory instead of a file, that directory will be searched for a file with the same name as the first argument.
 If the *-v* command line option is specified and the files differ, the differences will be shown in the output (just as with diff)
 ```
@@ -100,15 +100,15 @@ $ echo bar > bar
 
 $ diff foo1 foo2
 $ filediff foo1 foo2
-foo1 and foo2 are identical
+Files foo1 and foo2 are identical
 
 $ diff foo1 fu
 $ filediff foo1 fu
 Files foo1 and fu have the same device/inode
 
-$ filediff foo bar
-files foo and bar differ
-$ filediff -v foo bar
+$ filediff foo1 bar
+Files foo1 and bar differ
+$ filediff -v foo1 bar
 1c1
 < foo
 ---
@@ -128,7 +128,7 @@ $ filediff -v foo bar
 
 ### greplist
 *greplist \<string\> \<filelist(s)\>*
-<br>Will run the grep command, using the specified *string* on each of the files in the specified *filelist\(s\)
+<br>Will run the grep command, using the specified *string* on each of the files in the specified *filelist\(s\)*
 
 ### gt-title
 *gt-title \[-q\] \<title\>*
@@ -141,9 +141,9 @@ Specify *-q* to suppress that warning (useful when calling it from *PROMPT_COMMA
 *hashcat \[-c\] \[-m\] \[-w|W\] \<file\>*
 <br>*cat* the specified file to the console, prepending the line number and hash of the line.
 The default behavior is to compute the hash for each line independently
-By specifying the *-c* option, the cumulative has for the file will be displayed at each line instead
+By specifying the *-c* option, the cumulative hash for the file will be displayed at each line instead
 specifying *-w* will cause the hash computation to ignore all leading and trailing whitespace
-specifying *-W* will have produce the same hash computation but the whitespace will also be stripped from the output of the file
+specifying *-W* will produce the same hash computation but the whitespace will also be stripped from the output of the file
 By default *hashcat* will use *shasum* to compute the hashes.  If it cannot be found, it will use *md5sum*.
 The use of *md5sum* can be forced by specifying the *-m* command line option.
 
@@ -160,7 +160,7 @@ If the *-u* parameter is specified, the output will be in UTC rather than local 
 
 ### jmake
 *jmake \[options\] \[arguments\]*
-<br>Run make on the using the specified parameters.
+<br>Run make using the specified parameters.
 If the make command fails and the output of make will take more than a single screen of output, the results will be displayed in *less*.
 ```
 $ jmake -h
@@ -171,18 +171,18 @@ OPTIONS:
   -k : keep the output file from the make command
   -- : remaining arguments will not be considered options
 ```
-NOTE: This command is superceded by the use of *torl*.  Instead of running `jmake`, simply run `torl make`.
+NOTE: This command is superseded by the use of *torl*.  Instead of running `jmake`, simply run `torl make`.
 There are more characters to type but using *torl* is more flexible since it can work with any build system, not just *make*
 (e.g. *ninja* -- `torl ninja`)
 
 ### notes
 *notes \[-e|E\] \[-l\] \<string\>*
-<br>Run without an argument will produce a list of all notes found
-If an argument is found, will:
-* search the a note with the specified name
+<br>If run without an argument, it will produce a list of all notes found
+If an argument is given, will:
+* search for a note with the specified name
 * search the contents of all notes for a matching string
 
-If specified with the option '*-e* option, the matching note will be displayed in the editor (and created if it does not exist)
+If specified with the *-e* option, the matching note will be displayed in the editor (and created if it does not exist)
 Specifying *-E* will only show the file in the editor if it already exists.
 Specifying *-l* pages the notes through *less* instead of printing them with *cat*.
 
@@ -190,8 +190,8 @@ Specifying *-l* pages the notes through *less* instead of printing them with *ca
 Run the *ps* command searching the output for the specified argument(s) (ignoring the *psef* command itself, preserving the header line from the output)
 
 ### sep
-*sep \[-C\] \[-count|/\]* \[char\]*
-<br>The default behavior is to fill the screen (all rows and columns) with a dash in bold white/
+*sep \[-C\] \[-count|/\] \[char\]*
+<br>The default behavior is to fill the screen (all rows and columns) with a dash in bold white.
 If the count is specified, only that number of lines will be output.
 *-/* indicates that only 1/2 of the screen should be filled.
 Specifying the *-C* parameter prevents *sep* from changing the color of the output lines.
@@ -207,11 +207,11 @@ $ #cat foo | tr '[:lower:]' '[:upper:]' > foo
 $ cat foo | tr '[:lower:]' '[:upper:]' | sponge foo
 ```
 The first command (commented) would cause *foo* to be empty.
-By inserting *sponge * in the pipeline, the contents of the foo are converted as expected
+By inserting *sponge* in the pipeline, the contents of foo are converted as expected
 
 ### subgrep
 *subgrep \[-c\] \[-i\] \[-l\] \[-v\] \[-d dir\] string \[file\(s\)\]*
-<br>Search the all files in all subdirectories for the specified string.
+<br>Search all files in all subdirectories for the specified string.
 If *file(s)* are specified, search only those files matching the files/globs specified.
 If *-c* is specified, search only *cpp*, *c*, and *h* files.
 If *-i* is specified, matching is case-insensitive.
@@ -252,7 +252,7 @@ $ uxrgrep -h
 Usage: uxrgrep [-i] [-l] [-f|-e] [-n|v] [-h] <path> <pattern> [filepat]...
 WHERE:
  -e : pattern is an extended regular expression (ERE)
- -f : pattern is an fixed string
+ -f : pattern is a fixed string
  -i : ignore case
  -l : print only names of files containing matches
  -n : print 1-based line number with each output line

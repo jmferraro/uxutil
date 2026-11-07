@@ -29,7 +29,7 @@ usage()
   echo "Usage: $PGM [-i] [-l] [-f|-e] [-n|v] [-h] <path> <pattern> [filepat]..."
   echo "WHERE:"
   echo " -e : pattern is an extended regular expression (ERE)"
-  echo " -f : pattern is an fixed string"
+  echo " -f : pattern is a fixed string"
   echo " -i : Ignore case"
   echo " -l : print only names of files containing matches "
   echo " -n : print 1-based line number with each output line"
@@ -113,7 +113,7 @@ fi
 # /dev/null keeps grep printing the filename prefix even when a batch holds a
 # single file; that is what the GNU-only -H used to do.
 #
-# awk normalises the exit status to grep's convention (0 found, 1 not found).
+# awk normalizes the exit status to grep's convention (0 found, 1 not found).
 # Neither xargs (123) nor find (always 0) reports it usefully.
 if has_print0; then
   find "$WHERE" -type f "${FIND_PRED[@]}" -print0 |

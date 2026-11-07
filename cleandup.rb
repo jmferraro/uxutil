@@ -11,7 +11,7 @@ PROG = File.basename($0)
 opts = {
   both:       false,
   link:       false,
-  no_exec:    false,
+  dry_run:    false,
   no_hdr:     false,
   no_recurse: false,
   quiet:      false,
@@ -27,10 +27,10 @@ parser = OptionParser.new do |o|
   o.separator "Options:"
   o.on("-B", "--both",       "delete both copies if duplicate is found")   { opts[:both]       = true }
   o.on("-L", "--link",       "follow symlinks while walking dir tree")     { opts[:link]       = true }
-  o.on(      "--no_hdr",     "ignore $Header and $Id lines in source")     { opts[:no_hdr]     = true }
-  o.on("-n", "--no_execute", "dry run, show what would be deleted")        { opts[:no_exec]    = true }
+  o.on(      "--no-hdr",     "ignore $Header and $Id lines in source")     { opts[:no_hdr]     = true }
+  o.on("-n", "--dry-run",    "dry run, show what would be deleted")        { opts[:dry_run]    = true }
   o.on("-q", "--quiet",      "quiet")                                      { opts[:quiet]      = true }
-  o.on("-R", "--no_recurse", "do not recurse directory tree")              { opts[:no_recurse] = true }
+  o.on("-R", "--no-recurse", "do not recurse directory tree")              { opts[:no_recurse] = true }
   o.on("-v", "--verbose",    "verbose (multiple = more verbose)")          { opts[:verbose]   += 1 }
   o.on("-V", "--version",    "print version number and exit")              { puts "#{PROG} - version #{VERSION}"; exit }
   o.on("-h", "--help",       "show this help text")                        { puts o; exit }
@@ -148,18 +148,18 @@ def clean_dir(dir, sav, del, opts)
       seek = "#{del}/#{name}"                          # generate posdup name
       next unless File.exist?(seek)                    # skip if it doesn't exist
       next if File.directory?(seek)                    # skip if it's a directory
-      puts "Cmparing: #{seek}" if opts[:verbose] > 2
+      puts "Comparing: #{seek}" if opts[:verbose] > 2
       identical = my_cmp(path, seek, opts)
       if identical
         same = is_same?(path, seek)
         next if same && !opts[:both]                   # don't delete only copy!
         puts "Deleting: #{seek}" if opts[:verbose] > 0
-        unless opts[:no_exec]
+        unless opts[:dry_run]
           File.delete(seek) rescue (puts "Error: cannot delete #{seek}: #{$!}"; $errors += 1)
         end
         if opts[:both] && !same
           puts "Deleting: #{path}" if opts[:verbose] > 1
-          unless opts[:no_exec]
+          unless opts[:dry_run]
             File.delete(path) rescue (puts "Error: cannot delete #{path}: #{$!}"; $errors += 1)
           end
         end
@@ -176,7 +176,7 @@ def clean_dir(dir, sav, del, opts)
   if File.exist?(chk)
     if read_dir(chk).empty?
       puts "Removing: #{chk}/" if opts[:verbose] > 0
-      unless opts[:no_exec]
+      unless opts[:dry_run]
         Dir.rmdir(chk) rescue (puts "Error: cannot rmdir #{chk}: #{$!}"; $errors += 1)
       end
     end
@@ -186,7 +186,7 @@ def clean_dir(dir, sav, del, opts)
   if opts[:both] && File.exist?(dir)
     if read_dir(dir).empty?
       puts "Removing: #{dir}/" if opts[:verbose] > 0
-      unless opts[:no_exec]
+      unless opts[:dry_run]
         Dir.rmdir(dir) rescue (puts "Error: cannot rmdir #{dir}: #{$!}"; $errors += 1)
       end
     end

@@ -6,7 +6,7 @@ Helper files that are not commands in their own right: a library sourced by othe
 
 ### claude-fetch.js
 *(paste into the browser console on an open claude.ai conversation)*
-<br>Save one *claude.ai* conversation as JSON, for conversion with [*claude2md*](../README.md#claude2md).  *Save Page As* and *Print* only capture the turns currently mounted in the DOM because the message list is virtualised; the full transcript is fetched by the web app in a single JSON request, and this snippet simply re-issues that request (with *tree=True&rendering_mode=messages&render_all_tools=true*, so tool blocks arrive intact) and downloads the response as *\<title\>-\<uuid8\>.json*.
+<br>Save one *claude.ai* conversation as JSON, for conversion with [*claude2md*](../README.md#claude2md).  *Save Page As* and *Print* only capture the turns currently mounted in the DOM because the message list is virtualized; the full transcript is fetched by the web app in a single JSON request, and this snippet simply re-issues that request (with *tree=True&rendering_mode=messages&render_all_tools=true*, so tool blocks arrive intact) and downloads the response as *\<title\>-\<uuid8\>.json*.
 Open *https://claude.ai/chat/\<uuid\>*, press *F12* and select *Console* (Chrome refuses pasted code until you type *allow pasting*), paste the whole file and press *Enter*.  Then: *claude2md -a conv.json > conv.md*.
 Being a same-origin *fetch* run from the page itself, the (HttpOnly) session cookie is sent automatically; nothing is extracted, stored or published, and no public */share/* link is created.  Whole-account export is deliberately not attempted here -- use *Settings &rarr; Privacy &rarr; Export data* for that.
 
@@ -22,4 +22,4 @@ This file is **sourced, never run**, and is intentionally not executable.  The t
 
 ### whites.sh
 *whites.sh*
-<br>Show how the terminal renders the various "white" escape codes -- *37*, *1;37* (bold), *97* (bright), the 256-color entries *15* and *231*, and truecolor *255;255;255* -- as labelled sample blocks on a black background, with notes on which of them terminals and themes commonly map to the same color.
+<br>Show how the terminal renders the various "white" escape codes -- *37*, *1;37* (bold), *97* (bright), the 256-color entries *15* and *231*, and truecolor *255;255;255* -- as labeled sample blocks on a black background, with notes on which of them terminals and themes commonly map to the same color.

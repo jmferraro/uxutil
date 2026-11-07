@@ -13,7 +13,7 @@ my $prog = basename $0;         # base name for this program
 # defaults
 my $both       = 0;
 my $link       = 0;
-my $no_exec    = 0;
+my $dry_run    = 0;
 my $no_hdr     = 0;              # ignore RCS $Header
 my $no_recurse = 0;
 my $quiet      = 0;
@@ -25,9 +25,9 @@ Getopt::Long::Configure('require_order', 'bundling_override');
   my ($help, $getver) = (0, 0);
   my $rc = GetOptions("B|both"       => \$both,
                       "L|link"       => \$link,
-                      "no_hdr"       => \$no_hdr,
-                      "n|no_exec"    => \$no_exec,
-                      "R|no_recurse" => \$no_recurse,
+                      "no-hdr"       => \$no_hdr,
+                      "n|dry-run"    => \$dry_run,
+                      "R|no-recurse" => \$no_recurse,
                       "q|quiet"      => \$quiet,
                       "v|verbose+"   => \$verbose,
                       "V|version"    => \$getver,
@@ -93,18 +93,18 @@ sub clean_dir {
       my $seek = "$del/$name";                  # generate posdup name
       next if ! -e $seek;                       # skip if it doesn't exist
       next if -d $seek;                         # skip if it's a directory
-      print "Cmparing: $seek\n" if $verbose > 2;# print trace
+      print "Comparing: $seek\n" if $verbose > 2;# print trace
       my $cmp = &my_cmp($path, $seek);          # compare the files
       if (!$cmp) {                              # no differences?
         my $same = is_same($path, $seek);       # is it the same file?
         next if ($same && !$both);              # don't delete only copy!
         print "Deleting: $seek\n" if $verbose;  # trace
-        unless ($no_exec) {
+        unless ($dry_run) {
           unlink $seek or do { print "Error: cannot delete $seek: $!\n"; $errors++; };
         }
         if ($both && !$same) {
             print "Deleting: $path\n" if $verbose > 1;
-            unless ($no_exec) {
+            unless ($dry_run) {
               unlink $path or do { print "Error: cannot delete $path: $!\n"; $errors++; };
             }
         }
@@ -122,7 +122,7 @@ sub clean_dir {
     @files = &read_dir($chk);
     if (-1 == $#files) {                         # empty?
       print "Removing: $chk/\n" if $verbose;
-      unless ($no_exec) {
+      unless ($dry_run) {
         rmdir $chk or do { print "Error: cannot rmdir $chk: $!\n"; $errors++; };
       }
     }
@@ -133,7 +133,7 @@ sub clean_dir {
     @files = &read_dir($dir);
     if (-1 == $#files) {                         # empty?
       print "Removing: $dir/\n" if $verbose;
-      unless ($no_exec) {
+      unless ($dry_run) {
         rmdir $dir or do { print "Error: cannot rmdir $dir: $!\n"; $errors++; };
       }
     }
@@ -211,10 +211,10 @@ sub usage {
   print "Options:\n";
   print "    -B, --both       - delete both copies if duplicate is found (both dir1 and dir2)\n";
   print "    -L, --link       - follow symlinks while walking dir tree\n";
-  print "        --no_hdr     - ignore \$Header and \$Id lines in source\n";
-  print "    -n, --no_execute - dry run, show what would be deleted\n";
-  print "    -q, --quiet      - quiet (multiple = more quiet)\n";
-  print "    -R, --no_recurse - do not recurse directory tree\n";
+  print "        --no-hdr     - ignore \$Header and \$Id lines in source\n";
+  print "    -n, --dry-run    - dry run, show what would be deleted\n";
+  print "    -q, --quiet      - quiet (cancels any -v)\n";
+  print "    -R, --no-recurse - do not recurse directory tree\n";
   print "    -v, --verbose    - verbose (multiple = more verbose)\n";
   print "    -V, --Version    - print version number and exit\n";
   print "    -h, --help       - show this help text\n\n";

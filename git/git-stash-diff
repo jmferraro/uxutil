@@ -98,7 +98,7 @@ done
 
 echo "Identical files: ${MATCH}"
 echo "Different files: ${DIFFER}"
-echo "Skipped (deletions): ${SKIP_DELETED}"
+echo "Deletions (included above): ${SKIP_DELETED}"
 echo "Total files: ${#STATUS_LINES[@]}"
 
 # maybe this instead?
@@ -106,4 +106,4 @@ echo "Total files: ${#STATUS_LINES[@]}"
 #   git difftool stash^!
 # for diff of last stash against commit on which it was based,
 #   git difftool stash HEAD
-# for diff of last stash again current commit (stash@{n} for earlier stashes)
+# for diff of last stash against current commit (stash@{n} for earlier stashes)

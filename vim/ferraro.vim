@@ -1,7 +1,7 @@
 " Vim color file
 
 " This is almost all defaults, it just sets the background to dark
-" Set all the color options back to the default and then just ocerride rge
+" Set all the color options back to the default and then just override the
 " ones we want
 " look at the default.vim colorscheme for more details
 hi clear Normal
@@ -24,7 +24,7 @@ hi CursorColumn  term=none    cterm=bold ctermfg=0 ctermbg=7 guibg=Grey40
 
 if &term == "xterm" || &term == "xterm-256color"
   hi Comment       term=bold cterm=bold ctermfg=6   guifg=#80A0FF
-  hi DiffCChange   term=bold            ctermbg=5   guibg=DarkMagenta
+  hi DiffChange    term=bold            ctermbg=5   guibg=DarkMagenta
   hi Directory     term=bold cterm=bold ctermfg=6   guifg=Cyan
   hi MatchParen    term=reverse ctermfg=6           guibg=DarkCyan
   hi Search        term=reverse ctermfg=0
@@ -54,4 +54,4 @@ if &t_Co >= 256
   "hi Precondit   PreProc
 end
 
-" vim sw=2
+" vim: sw=2

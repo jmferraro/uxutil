@@ -26,7 +26,7 @@ do
 done
 shift $((OPTIND-1))
 
-# no pipe, just and not keeping the file, just run make
+# no pipe (-L) and not keeping the file, just run make
 [[ $NOLESS -ne 0 && $KEEP -eq 0 ]] && exec make "${MAKEFILE[@]}" "$@"
 
 # trapping output; create file
@@ -37,9 +37,9 @@ OUTFILE=$(mktemp "${TMPDIR}/make.XXXXXXXXXXX")
 [[ $KEEP -eq 0 ]] && trap 'rm -f "$OUTFILE"' EXIT
 
 # $? will be the result of the last command (tee, which succeeds)
-# pipefail returns the rightmost command to exit with non-zero status
+# pipefail returns the status of the rightmost command to exit with non-zero status
 # (or 0 if all succeeded)
-# Alternately, bash can check ${PIPESTATUS[n]} for each cmd in the pipeline
+# Alternatively, bash can check ${PIPESTATUS[n]} for each cmd in the pipeline
 set -o pipefail
 make "${MAKEFILE[@]}" "$@" 2>&1 | tee "${OUTFILE}"
 MAKERC=$?

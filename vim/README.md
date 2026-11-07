@@ -11,4 +11,4 @@ Key mappings include emacs-style *Ctrl-A*, *Ctrl-E* and *Ctrl-K* (start of line,
 
 ### ferraro.vim
 *(linked as ~/.vim/colors/ferraro.vim)*
-<br>The *ferraro* colorscheme: Vim's defaults on a dark background (white on black in gvim), with bold yellow statements, blue comments, a brown search highlight, a grey cursor line, and in 256-color terminals a distinct color for each kind of keyword.
+<br>The *ferraro* colorscheme: Vim's defaults on a dark background (white on black in gvim), with bold yellow statements, blue comments, a brown search highlight, a gray cursor line, and in 256-color terminals a distinct color for each kind of keyword.

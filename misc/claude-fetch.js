@@ -1,7 +1,7 @@
 // claude-fetch.js -- save one claude.ai conversation as JSON, from the browser.
 //
 // WHY THIS AND NOT A SHELL SCRIPT:
-//   The conversation list is virtualised, so "Save Page As" only ever captures
+//   The message list is virtualized, so "Save Page As" only ever captures
 //   the handful of turns currently mounted in the DOM.  The full transcript is
 //   already on the client though -- the web app fetches it in one JSON request.
 //   This just re-issues that request and hands you the response.
@@ -16,7 +16,7 @@
 //   3. paste this whole file, Enter.  A .json file downloads.
 //   4. scp it to wherever claude2md lives:   claude2md -a conv.json > conv.md
 //
-// Add ?all=1 style bulk export is deliberately omitted -- for the whole account
+// An ?all=1-style bulk export is deliberately omitted -- for the whole account
 // use Settings > Privacy > Export data, which is the supported route.
 
 (async () => {

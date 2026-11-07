@@ -12,7 +12,7 @@ The Codex files installed into *~/.codex* (or *$CODEX_HOME*), and the script tha
 
 ### AGENTS.md
 *(installed as ~/.codex/AGENTS.md)*
-<br>My global instructions for Codex: add the *-OMP* suffix to review files written in *reviews/*, after each review, record in *RESULTS.codex.md* every reason the previous request fell short so the same failures do not recur, and use test-driven development (red first, then green with the same unchanged test) for every defect or behavior change.
+<br>My global instructions for Codex: add the *-OMP* suffix to review files written in *reviews/*; after each review, record in *RESULTS.codex.md* every reason the previous request fell short so the same failures do not recur; and use test-driven development (red first, then green with the same unchanged test) for every defect or behavior change.
 
 ### config.toml
 *(merged into ~/.codex/config.toml)*
