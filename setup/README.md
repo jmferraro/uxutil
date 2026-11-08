@@ -41,8 +41,8 @@ $ ./setup-agents.sh -f omp      # updates everything else that differs
 Tested by [*../tests/test-setup-agents.sh*](../tests/README.md#test-setup-agentssh).
 
 ### setup-git.sh
-*setup-git.sh \[-f|--force\]*
-<br>Apply the git configuration from [*../git/gitconfig*](../git/README.md#gitconfig) to the user's global git config (via *git config --global*).  By default any setting that already differs is preserved and a warning is printed; *-f* (*--force*) overwrites existing values without warning.
+*setup-git.sh \[-f|--force\] \[-i|--interactive\]*
+<br>Apply the git configuration from [*../git/gitconfig*](../git/README.md#gitconfig) to the user's global git config (via *git config --global*).  Each setting is reported as *Adding* (not set yet), *Already present* (identical), *Conflicting* (set to something else; kept, unless *-f*) or *Replacing* (*-f*: the existing value is overwritten).  *-i* (*--interactive*) asks before each addition and, with *-f*, before each replacement; *n*, an empty answer or the end of the input skips it.
 
 ### setup-vim.sh
 *setup-vim.sh \[-f\] \[-n\]*
