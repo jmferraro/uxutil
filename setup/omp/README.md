@@ -25,6 +25,8 @@ The omp files installed into *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*), and the
 
 Agreeing declarations across sources preserve every supplied pin.  References combine; conflicting singleton files, pins, or targets block execution rather than silently preferring one source.  Moving an unchanged authority between invocation and prompt does not itself invalidate its cached plan assessment.  The positional prompt path and that prompt file's own *sha=* remain external, avoiding self-referential hashing; invocation syntax and exact-byte prompt checksum semantics are unchanged.
 
+Before implementation begins, the execution-start summary lists the merged effective arguments as *name=value*, whether they came from the invocation or the prompt (including unambiguous prose).  It includes supplied file pins, all references, and the selected step/bullet, with agreeing singleton declarations shown once.  Prompt-declared arguments are not deferred to the final report.
+
 Plan assessments in *cache/do-prompt/plans/* bind the plan to the canonical paths and exact-byte SHA-256 hashes of its governing specifications and references.  Changing the specification revalidates the entire plan against it before checking the next prompt, even when the plan file is unchanged.  Adding, removing or replacing a governing specification also invalidates reuse.  A changed pinned specification stops execution on the checksum mismatch instead.  Legacy plan-assessment records are revalidated into schema 2; executed-step records are unchanged.
 
 ```text

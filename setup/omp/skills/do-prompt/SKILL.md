@@ -51,6 +51,14 @@ Follow higher-priority instructions and repository rules throughout. Do not exec
 6. **Validate and gate once:** after discovery/merging, enforce the ordinary option dependencies and validate all discovered pins against actual bytes before interpreting their target documents or consulting any plan assessment. Reading the prompt to locate declarations is not approval of it. Follow necessary governing references without dropping current declarations or importing authorities from old caches. Use the same missing-document, specification-conformance, whole-plan, review, selector, current-state, and execution-record gates for both sources. In particular, a prompt-declared `step` must be resolved and checked for prior execution, then recorded exactly like an invocation `step=`.
 7. **Recheck the effective inputs:** immediately before implementation and after waits, recheck every supplied pin from either source. An externally pinned prompt that changed is a hard stop; an unpinned prompt change requires rereading it, rebuilding the effective parameters, and repeating the affected gates before execution. Changed prompt-declared specification bytes or a changed authority set invalidate the plan assessment just as invocation-selected changes do. Merely moving an unchanged authority between sources does not invalidate a matching assessment: cache identity depends on canonical files, exact bytes and governing constraints, not declaration placement.
 
+### Execution-start summary
+
+After resolving the effective parameters and passing all applicable gates, include them in the top-of-execution summary **before the first implementation action**, regardless of whether they came from the invocation, current prompt declarations, or unambiguous prompt prose. Build this summary from the merged effective parameter set, not just the invocation records; do not defer it to the final report.
+
+- Show the prompt path (or identify the implicit prompt), its external `sha=` when supplied, and every effective `spec=`, `plan=`, `review=`, `ref=`, `step=`, and `bullet=` as `name=value`, just as for invocation-supplied arguments. Omit absent options; quote values containing spaces.
+- Show resolved file paths and retain each supplied file pin in `filename,sha256` form. Include all effective references from both sources, including repeated `ref=` constraints; agreeing singleton declarations appear once with every binding pin retained.
+- Preserve selector values and the existing provenance/pin reporting requirements. Do not turn examples, historical citations, or code literals into summary arguments. This is a display requirement only: it does not change parsing, conflict handling, scope, validation, or execution-record behavior.
+
 ## 0. Verify the optional prompt checksum
 
 If `sha=` is supplied, validate its format and compute SHA-256 over the resolved prompt file's **exact raw bytes before interpreting its instructions**. Use a real byte-oriented hash tool/library, for example `sha256sum -- <prompt_path>` with safe path quoting. Do not hash rendered `read` output, copied/normalized text, Markdown extraction, or Git object contents; encoding, BOM, line endings and a final newline all affect the digest.
@@ -188,6 +196,8 @@ Distinguish observed results from predictions. State that implementation did not
 ### If acceptable
 
 Briefly state that the authority and prompt passed validation, identify their paths/revisions and binding references, include the matched bullet path/label and successful SHA-256 checks for every supplied pin, then **execute in the same task without another confirmation**. Recheck every supplied pin against its own file before the first implementation action.
+
+Include the execution-start summary defined above, listing the effective arguments from both invocation and prompt as `name=value` before implementation begins.
 
 - Follow the specified ORDER, scope, acceptance criteria, reporting requirements, and explicit stop boundaries. Use a task checklist for multi-step work. Do not stop at a phase boundary when authorized work remains. With `step=`, the authorized work ends with that unit: do not start the next one.
 - Record each completed unit as described in *Track executed steps*.
