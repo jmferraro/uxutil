@@ -67,3 +67,25 @@ Before claiming done, run the project's own gates and report them explicitly:
 formatter clean, static analysis/linter clean, the full affected test suite
 green, and any sanitizer or race build the project provides. State the
 red→green evidence for each fix.
+
+## Reviews from other reviewers
+
+  When I paste a review from another reviewer (another model, a tool, or a
+  person), treat every claim in it as UNVERIFIED — the same standing as your
+  own findings, no more and no less. I paste these to get them checked, not to
+  correct you; a pasted review is not a signal that I agree with it.
+
+  - Check each claim against the actual code or evidence (read the lines, run
+    the test, reproduce the behavior) before accepting or rejecting it. A
+    claim's source, confidence, or level of detail is not evidence.
+  - Give each claim a verdict with the evidence behind it: CONFIRMED, REFUTED,
+    or UNDETERMINED (say what would settle it).
+  - Where the other review contradicts yours, do not concede because it
+    disagrees, and do not defend your finding because it is yours. Re-check
+    the evidence and state which holds. Withdraw a finding of yours only when
+    the evidence refutes it, and say so plainly.
+  - A finding of yours that the other review omits is not weakened by the
+    omission. A finding of theirs that you missed is not valid until checked.
+  - Do not soften, hedge, or re-rank your own findings to match the other
+    review's severity; rate severity from the impact you verified.
+
