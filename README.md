@@ -3,6 +3,7 @@
 A collection of open source utilities and files I've developed over the years.  I use many of them daily.  Some are quick implementations of utilities provided by other (installable) packages that I might not be able to access wherever I might be working (e.g. *sponge*)
 
 This README covers the utilities in this directory.  The rest are grouped into sub-directories, each with a README describing its contents:
+* [*claude/*](claude/README.md) -- Claude utilities: convert *claude.ai* conversations to markdown, and extract and check Claude Code's spinner verbs
 * [*doc/*](doc/README.md) -- plain-text notes: setting up a new Ubuntu machine, other desktop environments, and some color values
 * [*dotfiles/*](dotfiles/README.md) -- configuration files to link into the home directory (*gdbinit*)
 * [*git/*](git/README.md) -- git utilities (most usable as git subcommands), my global git config, and git hooks
@@ -16,19 +17,6 @@ This README covers the utilities in this directory.  The rest are grouped into s
 ### bash-trace
 *bash-trace \<script\> \[args\]*
 <br>Run the specified bash *script* under the trace option (*bash -x*), printing each line as it executes.  The trace prefix is configured to show the source file, line number, and function name of each traced command.
-
-### claude2md
-*claude2md \[-a\] \[-l\] \[-d dir\] \[-s pattern\] \<file.json\>*
-<br>Convert *claude.ai* conversation JSON into readable markdown transcripts.  Accepts either a whole-account *conversations.json* (a JSON array) or a single conversation (a JSON object); with *-d* it writes one *&lt;date&gt;-&lt;title&gt;-&lt;uuid8&gt;.md* per conversation, otherwise it writes to stdout.
-Notable options: *-a* include thinking and tool_use/tool_result blocks (default is message text only), *-l* list conversations without writing, and *-s* restrict to titles matching a case-insensitive regex.  Requires *jq*.
-
-Saving a long conversation from the browser does not work — *claude.ai* virtualizes the message list, so *Save Page As* and *Print* only capture the turns currently mounted in the DOM.  The full transcript arrives in a single JSON request, so there are two ways to get at it:
-
-* **Whole account:** *Settings &rarr; Privacy &rarr; Export data*.  The emailed download link **expires 24 hours after delivery**; there is no published SLA on generation time, and deleted conversations are not included.  Unzip and run *claude2md* over *conversations.json*.
-* **One conversation:** paste [*misc/claude-fetch.js*](misc/claude-fetch.js) into the browser console on the open chat.  A same-origin *fetch* sends the session cookie automatically, so nothing is extracted or stored and no public */share/* link is created.  It downloads JSON for *claude2md*.
-
-Note that neither route carries the *bytes* of uploaded attachments or of files generated in-session — only references.  *claude2md* lists their filenames under each message so the gap is at least visible.  A conversation fetched with *tree=True* contains abandoned edit/regenerate branches; *claude2md* walks *current_leaf_message_uuid* back to the root to emit only the live thread, falling back to chronological order for exports (which drop the parent links).
-Very large exports are read into memory by *jq* in one pass; a multi-hundred-MB *conversations.json* may need more RAM than a small machine has.
 
 ### cleandup
 *cleandup \[options\] \[dir1 dir2\]*
