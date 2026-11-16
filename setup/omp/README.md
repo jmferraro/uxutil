@@ -6,7 +6,7 @@ The omp files installed into *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*), and the
 
 ### setup.sh
 *omp/setup.sh \[-f\] \[-n\] \[-i|-I\] \[-h\]*
-<br>Install the slash commands in *commands/*, the skills in *skills/* and the generic ones in [*../skills/*](../skills/README.md), and merge *config.yml* into omp's global settings through *omp config*.  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  Needs *jq*; the settings are skipped, with a warning, if *omp* is not installed.  *-f*, *-n*, *-i*, *-I* and a *config.ignore.txt* here work as they do for *setup-agents.sh*.  Afterwards run */reload-plugins* in omp, or start a new session, to load the changes.
+<br>Install the slash commands in *commands/* and the skills in [*../skills/*](../skills/README.md) that its *manifest.toml* lists for *omp*, and merge *config.yml* into omp's global settings through *omp config*.  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  Needs *jq*; the settings are skipped, with a warning, if *omp* is not installed.  *-f*, *-n*, *-i*, *-I* and a *config.ignore.txt* here work as they do for *setup-agents.sh*.  Afterwards run */reload-plugins* in omp, or start a new session, to load the changes.
 
 ## Files:
 
@@ -15,8 +15,8 @@ The omp files installed into *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*), and the
 <br>*/do-prompt plan=\<file\>\[,\<sha256\>\] \[step=\<N\>\] \[spec=\<file\>\[,\<sha256\>\]\] \[review=\<file\>\[,\<sha256\>\]\] \[ref=\<file\>\[,\<sha256\>\]\]...*
 <br>The */do-prompt* slash command: it passes its invocation arguments, with any whitespace pasted into them cleaned up, to the *do-prompt* skill below.  Existing invocation options remain supported; the skill also discovers current options in the prompt and combines both sources before validation.  Every file in *commands/* is installed as a command, so keep only commands there.
 
-### skills/do-prompt/SKILL.md
-*(installed as ~/.omp/agent/skills/do-prompt/SKILL.md)*
+### ../skills/do-prompt/SKILL.md
+*(kept in [*../skills/*](../skills/README.md) with the other skills; installed as ~/.omp/agent/skills/do-prompt/SKILL.md)*
 <br>The *do-prompt* skill: read an implementation or repair prompt, verify any SHA-256 pins on it and on the specification, plan, review and reference files named, check that the plan is sound and conforms to the project specification, independently check that the prompt is correct and conforms to both specification and plan, and then execute the prompt only if every check passes; otherwise print the concerns and change nothing.  Given *plan=* without a prompt file, it implements the plan, or with *step=* only that step (phase, section, etc.) of it.  Each step it completes is recorded in *~/.omp/agent/cache/do-prompt/steps*, and before executing a step again it warns that the step was already done and asks whether to revisit it.
 
 *spec=\<file\>\[,\<sha256\>\]* optionally supplies the overall project/design/specification, with the same quoting, path resolution and exact-byte checksum rules as *plan=*.  A specification constrains the assigned scope; it neither expands a step to the entire project nor replaces a required plan/review.  If no specification is supplied or identified in the governing documents, the existing checks still apply.

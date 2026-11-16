@@ -1,10 +1,44 @@
 # Global Codex Instructions
 
+## MANDATORY: Keep code simple (KISS) and cyclomatic complexity minimal
+
+These rules apply to all code you write or change, in any language, and to every code review.
+
+- **KISS:** choose the simplest design that meets the requirement. Add no speculative generality, and no layers,
+  options or abstractions the task does not need. Prefer plain, direct code a reader understands at a glance.
+- **Minimal cyclomatic complexity:** keep each function's branching to the minimum. Prefer early returns, small helper
+  functions and flat control flow over nested conditionals and long if/else chains.
+- **goto:** use it only where avoiding it would raise cyclomatic complexity, for example one cleanup or error-exit
+  label in C that replaces deeply nested conditionals. Never use it as a convenience.
+- **Reviews:** every code review checks the changed code against these rules. Code more complex than the task
+  requires, or with avoidable branching or nesting, is a finding.
+
 ## Review Filenames
 
 When asked to write a review in `reviews/`, always append `-OMP` immediately
 before the `.md` extension (for example, `reviews/runtime-review-OMP.md`),
 unless the user explicitly says `DO NOT APPLY -OMP SUFFIX`.
+
+## Reviews from other reviewers
+
+  When I paste a review from another reviewer (another model, a tool, or a
+  person), treat every claim in it as UNVERIFIED — the same standing as your
+  own findings, no more and no less. I paste these to get them checked, not to
+  correct you; a pasted review is not a signal that I agree with it.
+
+  - Check each claim against the actual code or evidence (read the lines, run
+    the test, reproduce the behavior) before accepting or rejecting it. A
+    claim's source, confidence, or level of detail is not evidence.
+  - Give each claim a verdict with the evidence behind it: CONFIRMED, REFUTED,
+    or UNDETERMINED (say what would settle it).
+  - Where the other review contradicts yours, do not concede because it
+    disagrees, and do not defend your finding because it is yours. Re-check
+    the evidence and state which holds. Withdraw a finding of yours only when
+    the evidence refutes it, and say so plainly.
+  - A finding of yours that the other review omits is not weakened by the
+    omission. A finding of theirs that you missed is not valid until checked.
+  - Do not soften, hedge, or re-rank your own findings to match the other
+    review's severity; rate severity from the impact you verified.
 
 ## Review-backed failure log and recurrence prevention
 
@@ -49,7 +83,10 @@ coding/bug-fix round; writing it is review-triggered only.
   repeating it. A broad green suite or reviewer PASS is not owner approval and
   does not replace specific evidence.
 - Keep failure entries after their fixes; append dated corrections and status
-  updates only after receiving a review rather than rewriting history. Avoid
+  updates only after receiving a review rather than rewriting history. The one
+  exception is the `compact-results-log` skill: it moves dated entries verbatim
+  to `RESULTS.codex.archive.md` and folds them into the file's failure-family
+  index. The archive is history and need not be read before each round. Avoid
   repeating recorded failure causes, but do not expand scope or bypass
   authorization to do so: pause the affected work and request the missing
   decision when necessary.
@@ -104,4 +141,3 @@ A re-review examines code changes introduced to fix defects found in an earlier
 code review. Every rule under "Rules for every CODE REVIEW" applies, plus:
 
 - THE PROPOSED FIX MUST ***ONLY*** INCLUDE FIXES FOR THE BUGS FOUND IN THE CODE SINCE THE LAST REVIEW.
-

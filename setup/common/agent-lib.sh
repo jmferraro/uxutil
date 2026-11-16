@@ -269,14 +269,15 @@ allow_overwrite() {
 
 # ---- files -----------------------------------------------------------------
 
-# install_file SRC DST - install file SRC as DST
+# install_file SRC DST [FROM] - install file SRC as DST; FROM names the source
+# in the messages (default SRC)
 install_file() {
-  local SRC="$1" DST="$2" DONE=Installed WOULD=install
+  local SRC="$1" DST="$2" FROM="${3:-$1}" DONE=Installed WOULD=install
   [[ -f $DST ]] && cmp -s "$SRC" "$DST" && return 0
   ignored_file "$DST" && { ignoring "$DST"; return 0; }
-  [[ -d $DST ]] && { warn "$DST is a directory, skipping $SRC"; return 0; }
+  [[ -d $DST ]] && { warn "$DST is a directory, skipping $FROM"; return 0; }
   if [[ -e $DST || -L $DST ]]; then
-    allow_overwrite "Overwrite $DST" "$DST" file "$DST differs from $SRC, keeping it (use -f to overwrite)" || return 0
+    allow_overwrite "Overwrite $DST" "$DST" file "$DST differs from $FROM, keeping it (use -f to overwrite)" || return 0
     DONE=Overwrote
     WOULD=overwrite
   else
@@ -287,6 +288,54 @@ install_file() {
     cp -- "$SRC" "$DST"
   fi
   changed "$DONE $DST" "$WOULD $DST"
+}
+
+# ---- instruction files and their sections ----------------------------------
+
+# has_heading FILE SECTION - succeed if FILE has a line equal to the first line
+# (the heading) of section file SECTION
+has_heading() {
+  [[ -f $1 ]] && grep -qxF -- "$(head -n1 -- "$2")" "$1"
+}
+
+# append_text FILE SECTION - append section file SECTION to FILE, after a blank
+# line when FILE has text
+append_text() {
+  if [[ -s $1 ]]; then
+    [[ -n $(tail -c1 -- "$1") ]] && echo >> "$1"
+    [[ -n $(tail -n1 -- "$1") ]] && echo >> "$1"
+  fi
+  cat -- "$2" >> "$1"
+}
+
+# append_section SECTION DST - append section file SECTION to DST unless DST
+# already has its heading.  A DST listed in config.ignore.txt is left alone
+# (install_file reports it)
+append_section() {
+  local SECTION="$1" DST="$2" HEADING
+  HEADING=$(head -n1 -- "$SECTION")
+  has_heading "$DST" "$SECTION" && return 0
+  ignored_file "$DST" && return 0
+  allow_add "Append \"$HEADING\" to $DST" "$DST" file || return 0
+  [[ -z ${DRYRUN} ]] && append_text "$DST" "$SECTION"
+  changed "Appended \"$HEADING\" to $DST" "append \"$HEADING\" to $DST"
+}
+
+# install_instructions SRC DST SECTION... - install instruction file SRC as
+# DST, with each SECTION file that exists (a markdown section starting with its
+# heading line) appended unless SRC already has that heading.  An existing DST
+# gets each SECTION whose heading it lacks appended first, so a DST kept because
+# it differs still gets the section; then DST is installed as install_file does
+install_instructions() {
+  local SRC="$1" DST="$2" FULL="$WORKDIR/${2##*/}" SECTION
+  shift 2
+  cp -- "$SRC" "$FULL"
+  for SECTION in "$@"; do
+    [[ -f $SECTION ]] || continue
+    has_heading "$FULL" "$SECTION" || append_text "$FULL" "$SECTION"
+    [[ -f $DST ]] && append_section "$SECTION" "$DST"
+  done
+  install_file "$FULL" "$DST" "$SRC"
 }
 
 # install_tree SRCDIR DSTDIR - install every file under SRCDIR into DSTDIR
@@ -300,14 +349,44 @@ install_tree() {
   return 0
 }
 
-# install_skills SRCDIR DSTDIR - install each skill (a directory holding a
-# SKILL.md) directly under SRCDIR as DSTDIR/<skill>
+# skill_name MANIFEST SKILL AGENT - print the name skill SKILL is installed
+# under for AGENT; fail if the skills manifest MANIFEST does not list AGENT for
+# it.  Each line is <skill> = ["<entry>", ...], an entry being an agent, which
+# gets the skill as <skill>, or <agent>:<name>, which gets it as <name> (so
+# variants of one skill, e.g. my_skill_omp, can each install as my_skill).
+# Blank lines and # comments are skipped.  A skill MANIFEST does not list (one
+# in development, or parked) goes to no agent
+skill_name() {
+  local LINE E NAME
+  local -a ENTRIES
+  [[ -f $1 ]] || return 1
+  while IFS= read -r LINE || [[ -n $LINE ]]; do
+    LINE=${LINE%%#*}
+    [[ $LINE == *=* && $(trim "${LINE%%=*}") == "$2" ]] || continue
+    LINE=${LINE#*=}
+    read -ra ENTRIES <<< "${LINE//[][\",]/ }"
+    for E in "${ENTRIES[@]}"; do
+      [[ ${E%%:*} == "$3" ]] || continue
+      NAME=$2
+      [[ $E == *:* ]] && NAME=${E#*:}
+      printf '%s' "${NAME:-$2}"
+      return 0
+    done
+    return 1
+  done < "$1"
+  return 1
+}
+
+# install_skills SRCDIR DSTDIR AGENT - install each skill (a directory holding
+# a SKILL.md) directly under SRCDIR that SRCDIR/manifest.toml lists for AGENT,
+# as DSTDIR/<the name the manifest gives it>
 install_skills() {
-  local SRCDIR="$1" DSTDIR="$2" SKILL
+  local SRCDIR="$1" DSTDIR="$2" AGENT="$3" SKILL NAME
   for SKILL in "$SRCDIR"/*/SKILL.md; do
     [[ -f $SKILL ]] || continue
     SKILL=$(dirname "$SKILL")
-    install_tree "$SKILL" "$DSTDIR/${SKILL##*/}"
+    NAME=$(skill_name "$SRCDIR/manifest.toml" "${SKILL##*/}" "$AGENT") || continue
+    install_tree "$SKILL" "$DSTDIR/$NAME"
   done
   return 0
 }

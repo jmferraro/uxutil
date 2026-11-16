@@ -6,9 +6,13 @@ The Claude Code files installed into *~/.claude* (or *$CLAUDE_CONFIG_DIR*), and 
 
 ### setup.sh
 *claude/setup.sh \[-f\] \[-n\] \[-i|-I\] \[-h\]*
-<br>Install *CLAUDE.md*, the hooks in *hooks/*, the generic skills in [*../skills/*](../skills/README.md) and any in a *skills/* directory here, and merge the sections in *settings/* into *settings.json*.  It also warns unless Claude Code's own *~/.claude.json* (*$CLAUDE_CONFIG_DIR/.claude.json* when that is set) has *leftArrowOpensAgents* false, so a stray left arrow can't open agent view.  That file is only checked, never changed, because Claude Code rewrites it while it runs; the warning says to turn off *← opens agents* in */config*, which lists it only while agent view is on (*claude --settings '{"disableAgentView":false}'* turns agent view on for one session).  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  Needs *jq*.  *-f*, *-n*, *-i*, *-I* and a *config.ignore.txt* here work as they do for *setup-agents.sh*.
+<br>Install *CLAUDE.md* with the section in *setup-coding.md* appended, the hooks in *hooks/*, the skills in [*../skills/*](../skills/README.md) that its *manifest.toml* lists for *claude*, and merge the sections in *settings/* into *settings.json*.  It also warns unless Claude Code's own *~/.claude.json* (*$CLAUDE_CONFIG_DIR/.claude.json* when that is set) has *leftArrowOpensAgents* false, so a stray left arrow can't open agent view.  That file is only checked, never changed, because Claude Code rewrites it while it runs; the warning says to turn off *← opens agents* in */config*, which lists it only while agent view is on (*claude --settings '{"disableAgentView":false}'* turns agent view on for one session).  [*setup-agents.sh*](../README.md#setup-agentssh) runs it; it can also be run on its own.  Needs *jq*.  *-f*, *-n*, *-i*, *-I* and a *config.ignore.txt* here work as they do for *setup-agents.sh*.
 
 ## Files:
+
+### setup-coding.md
+*(appended to ~/.claude/CLAUDE.md)*
+<br>The coding rules: keep code simple (KISS) and cyclomatic complexity minimal, use *goto* only where it lowers complexity, and treat a violation as a review finding.  It is appended to the installed *CLAUDE.md* unless that file already has its heading (its first line), so it also reaches a *CLAUDE.md* kept because it differs; a *CLAUDE.md* listed in *config.ignore.txt* is left alone.  The same section is in [*../codex/setup-coding.md*](../codex/setup-coding.md).
 
 ### CLAUDE.md
 *(installed as ~/.claude/CLAUDE.md)*

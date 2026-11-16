@@ -15,15 +15,14 @@ readonly DEST_DIR="${PI_CODING_AGENT_DIR:-$HOME/.omp/agent}"
 
 usage() {
   echo "Usage: omp/setup.sh [-f] [-n] [-i|-I] [-h]"
-  echo "Merge the commands, the skills in $SETUP_DIR/skills and"
-  echo "$SRC_DIR/skills, and config.yml (via 'omp config') into $DEST_DIR"
+  echo "Merge the commands, the skills in $SETUP_DIR/skills listed for omp in its"
+  echo "manifest.toml, and config.yml (via 'omp config') into $DEST_DIR"
   agent_options
 }
 
 parse_opts "$@"
 read_ignore "$SRC_DIR/config.ignore.txt" "$DEST_DIR"
 install_tree "$SRC_DIR/commands" "$DEST_DIR/commands"
-install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills"
-install_skills "$SRC_DIR/skills" "$DEST_DIR/skills"
+install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills" omp
 merge_omp_config "$SRC_DIR/config.yml"
 report "omp" "$DEST_DIR" "In omp, run /reload-plugins or start a new session to load the changes"

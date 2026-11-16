@@ -1,0 +1,12 @@
+# Which agents get each skill in this directory, one line per skill:
+#   <skill> = ["<agent>", ...]
+# An agent is a directory of setup/ holding a setup.sh: claude, codex or omp.
+# "<agent>:<name>" installs the skill as <name> instead, so variants of one
+# skill written for different agents can each be installed under its name:
+#   my_skill_claude = ["claude:my_skill"]
+#   my_skill_cli = ["codex:my_skill", "omp:my_skill"]
+# A skill not listed here (one in development, or parked) is not installed.
+# setup reads this file line by line (skill_name in ../common/agent-lib.sh), so
+# keep each list on its skill's line and write the skill's name unquoted.
+compact-results-log = ["codex", "omp"]
+do-prompt = ["omp"]

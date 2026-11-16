@@ -10,6 +10,8 @@ set -o pipefail
 
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 readonly REPO_DIR
+# checks the sections of an installed CLAUDE.md or AGENTS.md (run it for help)
+readonly MD_SECTIONS="$REPO_DIR/setup/common/md-sections.py"
 # shared with each scratch HOME so omp needn't unpack 100+ MB per test
 readonly REAL_OMP_NATIVES="$HOME/.omp/natives"
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/test-setup-agents.XXXXXX")
@@ -37,17 +39,20 @@ env_new() {
   # Claude Code's own config, as /config leaves it with "← opens agents" off
   printf '{"leftArrowOpensAgents": false}\n' > "$T/home/.claude.json"
   [[ $2 == real ]] && return 0
-  rm -rf "$T/setup/omp/commands" "$T/setup/omp/skills" "$T/setup/skills" "$T/setup/claude/settings" "$T/setup/claude/hooks"
-  mkdir -p "$T/setup/omp/commands" "$T/setup/omp/skills/ompskill" "$T/setup/skills/gen/ref" "$T/setup/claude/settings"
+  rm -rf "$T/setup/omp/commands" "$T/setup/skills" "$T/setup/claude/settings" "$T/setup/claude/hooks"
+  # instruction sections are added only by the tests that use section_fixture
+  rm -f "$T/setup/claude/setup-coding.md" "$T/setup/codex/setup-coding.md"
+  mkdir -p "$T/setup/omp/commands" "$T/setup/skills/ompskill" "$T/setup/skills/gen/ref" "$T/setup/claude/settings"
   printf 'claude rules\n' > "$T/setup/claude/CLAUDE.md"
   printf '{"theme": "dark", "effortLevel": "xhigh", "list": ["a", "b"], "modelSettings": {"m": {"effortLevel": "xhigh"}}}\n' > "$T/setup/claude/settings/setting_general.json"
   printf 'codex rules\n' > "$T/setup/codex/AGENTS.md"
   printf 'model = "m1"\nmodel_reasoning_effort = "xhigh"\n\n[tui]\nalt = true\n' > "$T/setup/codex/config.toml"
   printf 'modelRoles:\n  default: prov/big\n  smol: prov/small\ntheme:\n  dark: obsidian\nenabledProviders:\n  - codex\n' > "$T/setup/omp/config.yml"
   printf 'cmd\n' > "$T/setup/omp/commands/cmd.md"
-  printf 'omp skill\n' > "$T/setup/omp/skills/ompskill/SKILL.md"
+  printf 'omp skill\n' > "$T/setup/skills/ompskill/SKILL.md"
   printf 'generic skill\n' > "$T/setup/skills/gen/SKILL.md"
   printf 'notes\n' > "$T/setup/skills/gen/ref/notes.md"
+  printf '%s\n' 'gen = ["claude", "codex", "omp"]' 'ompskill = ["omp"]' > "$T/setup/skills/manifest.toml"
   return 0
 }
 
@@ -409,6 +414,117 @@ test_claude_no_sections() {
   run "$T/setup/claude/setup.sh"
   check "exit 0" rc_is 0
   check "settings.json untouched" json_is "$T/home/.claude/settings.json" "$CLAUDE_SEED"
+}
+
+# ---- instruction sections (setup-coding.md) ---------------------------------
+
+# section_fixture AGENT - give AGENT a small setup-coding.md section
+section_fixture() {
+  printf '## Coding\ncoding rules\n' > "$T/setup/$1/setup-coding.md"
+}
+
+test_claude_section_fresh() {
+  env_new claude_section_fresh
+  section_fixture claude
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "CLAUDE.md installed with the section" file_is "$T/home/.claude/CLAUDE.md" "$(printf 'claude rules\n\n## Coding\ncoding rules')"
+}
+
+test_claude_section_idempotent() {
+  env_new claude_section_idempotent
+  section_fixture claude
+  run "$T/setup/claude/setup.sh"
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "second run is up to date" out_has "Claude Code is up to date in $T/home/.claude"
+}
+
+test_claude_section_appended() {
+  env_new claude_section_appended
+  section_fixture claude
+  claude_seed
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "section appended to the kept file" file_is "$T/home/.claude/CLAUDE.md" "$(printf 'mine\n\n## Coding\ncoding rules')"
+  check "append reported" out_has "Appended \"## Coding\" to $T/home/.claude/CLAUDE.md"
+  check "rest of the difference still warned" out_has "Warning: $T/home/.claude/CLAUDE.md differs from $T/setup/claude/CLAUDE.md"
+}
+
+test_claude_section_present() {
+  env_new claude_section_present
+  section_fixture claude
+  mkdir -p "$T/home/.claude"
+  printf 'mine\n\n## Coding\nmy own words\n' > "$T/home/.claude/CLAUDE.md"
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "a file with the heading is left alone" file_is "$T/home/.claude/CLAUDE.md" "$(printf 'mine\n\n## Coding\nmy own words')"
+  check "nothing appended" out_lacks "Appended"
+}
+
+test_claude_section_dry_run() {
+  env_new claude_section_dry_run
+  section_fixture claude
+  claude_seed
+  local BEFORE
+  BEFORE=$(home_sum)
+  run "$T/setup/claude/setup.sh" -n
+  check "exit 0" rc_is 0
+  check "HOME unchanged" test "$BEFORE" == "$(home_sum)"
+  check "reports the append" out_has "Would append \"## Coding\" to $T/home/.claude/CLAUDE.md"
+}
+
+test_claude_section_ignore() {
+  env_new claude_section_ignore
+  section_fixture claude
+  claude_seed
+  printf 'CLAUDE.md\n' > "$T/setup/claude/config.ignore.txt"
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "a listed file is not appended to" file_is "$T/home/.claude/CLAUDE.md" "mine"
+  check "nothing appended" out_lacks "Appended"
+}
+
+test_claude_section_interactive() {
+  env_new claude_section_interactive
+  section_fixture claude
+  claude_seed
+  # the append is asked first: n; the input then runs out, skipping the rest
+  run_with 'n\n' "$T/setup/claude/setup.sh" -i
+  check "exit 0" rc_is 0
+  check "append asked" out_has "Append \"## Coding\" to $T/home/.claude/CLAUDE.md? [y/N/i]"
+  check "n skipped the append" file_is "$T/home/.claude/CLAUDE.md" "mine"
+}
+
+test_codex_section_fresh() {
+  env_new codex_section_fresh
+  section_fixture codex
+  run "$T/setup/codex/setup.sh"
+  check "exit 0" rc_is 0
+  check "AGENTS.md installed with the section" file_is "$T/home/.codex/AGENTS.md" "$(printf 'codex rules\n\n## Coding\ncoding rules')"
+}
+
+test_codex_section_appended() {
+  env_new codex_section_appended
+  section_fixture codex
+  mkdir -p "$T/home/.codex"
+  # no final newline: the section still starts after a blank line
+  printf 'mine' > "$T/home/.codex/AGENTS.md"
+  run "$T/setup/codex/setup.sh"
+  check "exit 0" rc_is 0
+  check "section appended to the kept file" file_is "$T/home/.codex/AGENTS.md" "$(printf 'mine\n\n## Coding\ncoding rules')"
+  check "append reported" out_has "Appended \"## Coding\" to $T/home/.codex/AGENTS.md"
+}
+
+test_codex_section_in_source() {
+  env_new codex_section_in_source
+  section_fixture codex
+  # the source already holds the section (as setup/codex/AGENTS.md does)
+  printf 'codex rules\n\n## Coding\ncoding rules\n' > "$T/setup/codex/AGENTS.md"
+  run "$T/setup/codex/setup.sh"
+  check "exit 0" rc_is 0
+  check "installed as it is, the section not added again" file_is "$T/home/.codex/AGENTS.md" "$(printf 'codex rules\n\n## Coding\ncoding rules')"
+  check "nothing appended" out_lacks "Appended"
 }
 
 # spinner_fixture - give the test a setting_spinner.json with two spinner verbs
@@ -907,23 +1023,143 @@ test_omp_not_installed() {
   check "files still installed" file_is "$T/home/.omp/agent/commands/cmd.md" "cmd"
 }
 
+# ---- which agents get each skill (setup/skills/manifest.toml) ---------------
+
+# manifest_fixture - add skills codexomp and claudeonly, and the variants of
+# one skill installed as "variant": variant_claude for claude and variant_cli
+# for codex and omp; and a manifest.toml listing them, written with the
+# spacing and comments people use.  The fixture's gen skill stays unlisted:
+# the commented-out line and genx, a longer name starting with gen, must not
+# count as listing it
+manifest_fixture() {
+  mkdir -p "$T/setup/skills/codexomp" "$T/setup/skills/claudeonly" "$T/setup/skills/variant_claude" "$T/setup/skills/variant_cli"
+  printf 'codex and omp\n' > "$T/setup/skills/codexomp/SKILL.md"
+  printf 'claude only\n' > "$T/setup/skills/claudeonly/SKILL.md"
+  printf 'claude variant\n' > "$T/setup/skills/variant_claude/SKILL.md"
+  printf 'cli variant\n' > "$T/setup/skills/variant_cli/SKILL.md"
+  printf '%s\n' '# which agents get each skill' '' 'codexomp = ["codex", "omp"]  # not claude' \
+    '  claudeonly=[ "claude" ]' '# gen = ["omp"]' 'genx = ["omp"]' 'ompskill = ["omp"]' \
+    'variant_claude = ["claude:variant"]' 'variant_cli = [ "codex:variant", "omp:variant" ]' > "$T/setup/skills/manifest.toml"
+}
+
+test_claude_manifest() {
+  env_new claude_manifest
+  manifest_fixture
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "skill listed for claude installed" file_is "$T/home/.claude/skills/claudeonly/SKILL.md" "claude only"
+  check "skill listed for other agents not installed" test ! -e "$T/home/.claude/skills/codexomp"
+  check "unlisted skill not installed" test ! -e "$T/home/.claude/skills/gen"
+  check "manifest not installed" test ! -e "$T/home/.claude/skills/manifest.toml"
+  check "variant installed under the name the manifest gives" file_is "$T/home/.claude/skills/variant/SKILL.md" "claude variant"
+  check "variant not installed under its directory name" test ! -e "$T/home/.claude/skills/variant_claude"
+}
+
+test_claude_no_manifest() {
+  env_new claude_no_manifest
+  rm "$T/setup/skills/manifest.toml"
+  run "$T/setup/claude/setup.sh"
+  check "exit 0" rc_is 0
+  check "no skill installed" test ! -e "$T/home/.claude/skills"
+}
+
+test_codex_manifest() {
+  env_new codex_manifest
+  manifest_fixture
+  run "$T/setup/codex/setup.sh"
+  check "exit 0" rc_is 0
+  check "skill listed for codex installed" file_is "$T/home/.codex/skills/codexomp/SKILL.md" "codex and omp"
+  check "skill listed for claude only not installed" test ! -e "$T/home/.codex/skills/claudeonly"
+  check "unlisted skill not installed" test ! -e "$T/home/.codex/skills/gen"
+  check "variant installed under the name the manifest gives" file_is "$T/home/.codex/skills/variant/SKILL.md" "cli variant"
+  check "variant not installed under its directory name" test ! -e "$T/home/.codex/skills/variant_cli"
+}
+
+test_omp_manifest() {
+  env_new omp_manifest
+  manifest_fixture
+  run "$T/setup/omp/setup.sh"
+  check "exit 0" rc_is 0
+  check "skill listed for omp installed" file_is "$T/home/.omp/agent/skills/codexomp/SKILL.md" "codex and omp"
+  check "skill listed for claude only not installed" test ! -e "$T/home/.omp/agent/skills/claudeonly"
+  check "unlisted skill not installed" test ! -e "$T/home/.omp/agent/skills/gen"
+  check "omp's own skill installed" file_is "$T/home/.omp/agent/skills/ompskill/SKILL.md" "omp skill"
+  check "variant installed under the name the manifest gives" file_is "$T/home/.omp/agent/skills/variant/SKILL.md" "cli variant"
+  check "variant not installed under its directory name" test ! -e "$T/home/.omp/agent/skills/variant_cli"
+}
+
 # ---- the real data files ---------------------------------------------------
+
+# manifest_valid SETUPDIR - succeed if SETUPDIR/skills/manifest.toml is TOML
+# whose every key is a skill in SETUPDIR/skills and every value a non-empty
+# list of entries, each an agent (a directory of SETUPDIR/*/setup.sh) or
+# <agent>:<name>; no agent gets two skills under one name, and the name in each
+# SKILL.md is the name it is installed under.  Prints each problem found
+manifest_valid() {
+  python3 -c 'import pathlib, re, sys, tomllib
+setup = pathlib.Path(sys.argv[1])
+agents = {p.parent.name for p in setup.glob("*/setup.sh")}
+problems, installed = [], set()
+for skill, entries in tomllib.loads((setup / "skills" / "manifest.toml").read_text()).items():
+    md = setup / "skills" / skill / "SKILL.md"
+    if not md.is_file() or not isinstance(entries, list) or not entries:
+        problems.append(f"{skill}: not a skill, or no agents listed")
+        continue
+    parts = md.read_text().split("---", 2)
+    declared = re.search(r"^name:\s*\"?([^\"\n]*?)\"?\s*$", parts[1] if len(parts) == 3 else "", re.M)
+    for entry in entries:
+        agent, _, name = str(entry).partition(":")
+        name = name or skill
+        if agent not in agents:
+            problems.append(f"{skill}: unknown agent {agent}")
+        if (agent, name) in installed:
+            problems.append(f"{skill}: {agent} already gets a skill named {name}")
+        installed.add((agent, name))
+        if not declared or declared.group(1) != name:
+            problems.append(f"{skill}: the name in its SKILL.md is not {name}")
+print("\n".join(problems), end="\n" if problems else "")
+sys.exit(bool(problems))' "$1"
+}
 
 test_real_files() {
   env_new real_files real
   run "$T/setup/setup-agents.sh"
   check "exit 0" rc_is 0
-  check "CLAUDE.md" cmp -s "$T/setup/claude/CLAUDE.md" "$T/home/.claude/CLAUDE.md"
+  # each instruction file is installed with every "## " section of its source
+  # and of its setup-coding.md, each once and unchanged, whether the source
+  # already has the setup-coding.md section or it was appended; and each
+  # quoted section name in it names a section there.  md-sections.py prints
+  # each section missing, repeated or different, and each bad name
+  check "CLAUDE.md: every section once, text unchanged" "$MD_SECTIONS" check "$T/home/.claude/CLAUDE.md" \
+    "$T/setup/claude/CLAUDE.md" "$T/setup/claude/setup-coding.md"
+  check "CLAUDE.md: quoted section names exist" "$MD_SECTIONS" refs "$T/home/.claude/CLAUDE.md"
   # the real sections set separate settings, so a plain deep merge models them
   check "settings.json, every section merged in" json_is "$T/home/.claude/settings.json" \
     "$(jq -s 'reduce .[] as $s ({}; . * $s)' "$T/setup/claude/settings/"setting_*.json)"
   check "attribution hook" cmp -s "$T/setup/claude/hooks/no-attribution.sh" "$T/home/.claude/hooks/no-attribution.sh"
-  check "AGENTS.md" cmp -s "$T/setup/codex/AGENTS.md" "$T/home/.codex/AGENTS.md"
+  check "AGENTS.md: every section once, text unchanged" "$MD_SECTIONS" check "$T/home/.codex/AGENTS.md" \
+    "$T/setup/codex/AGENTS.md" "$T/setup/codex/setup-coding.md"
+  check "AGENTS.md: quoted section names exist" "$MD_SECTIONS" refs "$T/home/.codex/AGENTS.md"
   check "config.toml" toml_is "$T/home/.codex/config.toml" \
     "$(python3 -c 'import json, sys, tomllib; print(json.dumps(tomllib.load(open(sys.argv[1], "rb"))))' "$T/setup/codex/config.toml")"
-  check "do-prompt skill" cmp -s "$T/setup/omp/skills/do-prompt/SKILL.md" "$T/home/.omp/agent/skills/do-prompt/SKILL.md"
+  check "do-prompt skill" cmp -s "$T/setup/skills/do-prompt/SKILL.md" "$T/home/.omp/agent/skills/do-prompt/SKILL.md"
   check "do-prompt command" cmp -s "$T/setup/omp/commands/do-prompt.md" "$T/home/.omp/agent/commands/do-prompt.md"
   check "config.yml" omp_is "$(PI_CODING_AGENT_DIR="$T/setup/omp" HOME="$T/home" omp config list --scope=global --json | jq 'map_values(.value)')"
+}
+
+test_real_skills() {
+  env_new real_skills real
+  run "$T/setup/setup-agents.sh"
+  check "exit 0" rc_is 0
+  check "manifest.toml: real skills and agents, one skill per installed name, SKILL.md names match" manifest_valid "$T/setup"
+  check "compact-results-log installed for codex" cmp -s "$T/setup/skills/compact-results-log/SKILL.md" "$T/home/.codex/skills/compact-results-log/SKILL.md"
+  check "compact-results-log installed for omp" cmp -s "$T/setup/skills/compact-results-log/SKILL.md" "$T/home/.omp/agent/skills/compact-results-log/SKILL.md"
+  check "compact-results-log script installed" cmp -s "$T/setup/skills/compact-results-log/scripts/results_log.py" "$T/home/.codex/skills/compact-results-log/scripts/results_log.py"
+  check "compact-results-log not installed for claude" test ! -e "$T/home/.claude/skills/compact-results-log"
+  check "do-prompt not installed for claude" test ! -e "$T/home/.claude/skills/do-prompt"
+  check "do-prompt not installed for codex" test ! -e "$T/home/.codex/skills/do-prompt"
+  # every skill lives in setup/skills: a setup/<agent>/skills directory is not installed
+  check "no per-agent skills directory" test -z "$(find "$T/setup" -mindepth 2 -maxdepth 2 -type d -name skills)"
 }
 
 # ---- main ------------------------------------------------------------------
@@ -934,15 +1170,19 @@ TESTS=(
   test_claude_invalid_settings test_claude_sections test_claude_sections_conflict test_claude_sections_invalid
   test_claude_ignore test_claude_interactive test_claude_interactive_adds test_claude_reconsider_adds test_claude_reconsider test_claude_reconsider_remove test_claude_reconsider_r_reasks test_claude_interactive_no_answers
   test_claude_no_sections test_claude_spinner_fresh test_claude_spinner_merge test_claude_spinner_dry_run
+  test_claude_section_fresh test_claude_section_idempotent test_claude_section_appended test_claude_section_present
+  test_claude_section_dry_run test_claude_section_ignore test_claude_section_interactive
+  test_codex_section_fresh test_codex_section_appended test_codex_section_in_source
   test_claude_attribution_fresh test_claude_attribution_hook test_claude_attribution_keeps_hooks
   test_claude_left_arrow test_claude_left_arrow_config_dir
   test_codex_fresh test_codex_merge test_codex_existing_table test_codex_force test_codex_dry_run
   test_codex_idempotent test_codex_escaped_quote test_codex_multiline_value_kept test_codex_multiline_string
   test_codex_unsupported_source test_codex_ignore test_codex_interactive
+  test_claude_manifest test_claude_no_manifest test_codex_manifest
 )
 OMP_TESTS=(
   test_omp_fresh test_omp_merge test_omp_force test_omp_dry_run test_omp_idempotent test_omp_ignore test_omp_interactive test_omp_not_installed
-  test_real_files
+  test_omp_manifest test_real_files test_real_skills
 )
 if command -v omp >/dev/null; then
   TESTS+=("${OMP_TESTS[@]}")

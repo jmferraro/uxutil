@@ -3,9 +3,9 @@
 Scripts to run after cloning the repository to configure a new machine.  Only the *setup-\** scripts live here; each coding agent has a sub-directory holding the files installed for it and the *setup.sh* that installs them, and the files supporting those scripts are in sub-directories too.  Each sub-directory has a README describing its contents:
 * [*claude/*](claude/README.md) -- Claude Code: global instructions and settings
 * [*codex/*](codex/README.md) -- Codex: global instructions and settings
-* [*omp/*](omp/README.md) -- omp: a slash command, its skill, and settings
-* [*skills/*](skills/README.md) -- generic skills, installed for every agent
-* [*common/*](common/README.md) -- the library the agents' *setup.sh* scripts share
+* [*omp/*](omp/README.md) -- omp: a slash command and settings
+* [*skills/*](skills/README.md) -- every agent's skills, each installed for the agents [*skills/manifest.toml*](skills/manifest.toml) lists it for
+* [*common/*](common/README.md) -- the library the agents' *setup.sh* scripts share, and *md-sections.py*, a check for the *CLAUDE.md* and *AGENTS.md* they install
 
 ## Utilities:
 
@@ -15,11 +15,11 @@ Scripts to run after cloning the repository to configure a new machine.  Only th
 
 | Agent | Source | Installed into |
 |---|---|---|
-| *claude* | [*CLAUDE.md*](claude/CLAUDE.md), the hooks in [*hooks/*](claude/hooks), every *setting_\*.json* in [*settings/*](claude/settings) (combined into one *settings.json*, then merged key by key, needs *jq*) | *~/.claude* (or *$CLAUDE_CONFIG_DIR*) |
-| *codex* | [*AGENTS.md*](codex/AGENTS.md), [*config.toml*](codex/config.toml) (merged line by line: only *\[table\]* headers and one-line settings) | *~/.codex* (or *$CODEX_HOME*) |
+| *claude* | [*CLAUDE.md*](claude/CLAUDE.md) (with [*setup-coding.md*](claude/setup-coding.md) appended), the hooks in [*hooks/*](claude/hooks), every *setting_\*.json* in [*settings/*](claude/settings) (combined into one *settings.json*, then merged key by key, needs *jq*) | *~/.claude* (or *$CLAUDE_CONFIG_DIR*) |
+| *codex* | [*AGENTS.md*](codex/AGENTS.md) (with [*setup-coding.md*](codex/setup-coding.md) appended), [*config.toml*](codex/config.toml) (merged line by line: only *\[table\]* headers and one-line settings) | *~/.codex* (or *$CODEX_HOME*) |
 | *omp* | [*commands/*](omp/commands), [*config.yml*](omp/config.yml) (merged through *omp config*, needs *jq*; skipped if *omp* is not installed) | *~/.omp/agent* (or *$PI_CODING_AGENT_DIR*) |
 
-Every agent also gets the generic skills in [*skills/*](skills/README.md), plus any skills in its own *skills/* directory.
+Every agent also gets the skills in [*skills/*](skills/README.md) that [*skills/manifest.toml*](skills/manifest.toml) lists for it, each under the name the manifest gives it; a skill the manifest does not list is not installed.
 
 To leave some settings or files alone on one machine (e.g. a theme you prefer there), list them in that agent's *config.ignore.txt* (e.g. *omp/config.ignore.txt*), which git ignores, so each machine keeps its own.  One name per line, written as setup prints it: a setting such as *theme.dark* or *modelRoles.default*, or an installed file by its full path or its path in the agent's directory (e.g. *skills/do-prompt/SKILL.md*).  A name covers everything under it (*modelRoles*, *skills/do-prompt*); blank lines and lines starting with *#* are skipped.  Listed items are never changed, even with *-f*, and each one that would have changed is reported as *Ignoring ...*:
 ```

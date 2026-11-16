@@ -16,8 +16,8 @@ readonly CLAUDE_JSON="${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"
 
 usage() {
   echo "Usage: claude/setup.sh [-f] [-n] [-i|-I] [-h]"
-  echo "Merge CLAUDE.md and the skills in $SETUP_DIR/skills and"
-  echo "$SRC_DIR/skills into $DEST_DIR, and every"
+  echo "Merge CLAUDE.md (plus setup-coding.md) and the skills in $SETUP_DIR/skills"
+  echo "listed for claude in its manifest.toml into $DEST_DIR, and every"
   echo "$SRC_DIR/settings/$SETTINGS_MASK into its settings.json;"
   echo "warn unless $CLAUDE_JSON turns off \"← opens agents\""
   agent_options
@@ -33,10 +33,9 @@ check_left_arrow() {
 
 parse_opts "$@"
 read_ignore "$SRC_DIR/config.ignore.txt" "$DEST_DIR"
-install_file "$SRC_DIR/CLAUDE.md" "$DEST_DIR/CLAUDE.md"
+install_instructions "$SRC_DIR/CLAUDE.md" "$DEST_DIR/CLAUDE.md" "$SRC_DIR/setup-coding.md"
 install_tree "$SRC_DIR/hooks" "$DEST_DIR/hooks"
 merge_json_dir "$SRC_DIR/settings" "$SETTINGS_MASK" "$DEST_DIR/settings.json"
-install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills"
-install_skills "$SRC_DIR/skills" "$DEST_DIR/skills"
+install_skills "$SETUP_DIR/skills" "$DEST_DIR/skills" claude
 check_left_arrow
 report "Claude Code" "$DEST_DIR"

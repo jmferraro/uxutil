@@ -1,7 +1,11 @@
 # UXUTIL/SETUP/SKILLS
 
-Generic skills, written for any coding agent.  Each skill is a directory holding a *SKILL.md* (plus any files it refers to); [*setup-agents.sh*](../README.md#setup-agentssh) installs every one of them into each agent's skills directory (*~/.claude/skills*, *~/.codex/skills*, *~/.omp/agent/skills*).  Skills that only work with one agent belong in that agent's own *skills/* directory instead (e.g. [*../omp/skills/*](../omp/README.md#skillsdo-promptskillmd)).
+Every skill the setup installs, for any agent, kept here once rather than in each agent's directory.  Each skill is a directory holding a *SKILL.md* (plus any files it refers to); [*setup-agents.sh*](../README.md#setup-agentssh) installs it into the skills directory (*~/.claude/skills*, *~/.codex/skills*, *~/.omp/agent/skills*) of each agent [*manifest.toml*](manifest.toml) lists for it.  A skill it does not list (one in development, or parked) is not installed.
+
+### manifest.toml
+<br>Which agents get each skill, one line per skill: *\<skill\> = \["\<agent\>", ...\]*, an agent being a directory of *setup/* holding a *setup.sh* (*claude*, *codex* or *omp*).  An entry *"\<agent\>:\<name\>"* installs the skill as *\<name\>* for that agent, so a skill that cannot be written for every agent can have variants, each installed under the one name: *my_skill_claude = \["claude:my_skill"\]* and *my_skill_cli = \["codex:my_skill", "omp:my_skill"\]*.  The *name* in a variant's *SKILL.md* is the name it is installed under, *my_skill*.  Setup reads the file line by line, so keep each list on its skill's line and write the skill's name unquoted; blank lines and *#* comments are skipped.  [*../../tests/test-setup-agents.sh*](../../tests/README.md#test-setup-agentssh) checks that every line names a skill here and known agents, that no agent gets two skills under one name, and that each *SKILL.md* has the name it is installed under.
 
 ## Skills:
 
-None yet.
+- [*compact-results-log/*](compact-results-log/SKILL.md) *(codex, omp)*: compacts a repository's *RESULTS.codex.md* failure log. It folds the dated review entries into a short index of failure families, each with a concrete prevention check, and moves the entries verbatim to *RESULTS.codex.archive.md*. *scripts/results_log.py* does the mechanical move (`archive`) and checks that nothing was lost (`check`).
+- [*do-prompt/*](do-prompt/SKILL.md) *(omp)*: checks an implementation or repair prompt against its plan and specification and executes it only if every check passes; run by omp's */do-prompt* command.  Described in [*../omp/README.md*](../omp/README.md#skillsdo-promptskillmd).
