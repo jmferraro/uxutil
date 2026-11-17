@@ -44,5 +44,48 @@ class ArchiveTest(unittest.TestCase):
             self.assertIn("## 16 November 2026 — day-month-year dated section\n\n### RC-002 — second\n\n- body two\n", history)
 
 
+class SizeTest(unittest.TestCase):
+    """`size` only reports; it never compacts, writes or deletes anything."""
+
+    def files(self, root):
+        return {path.name: path.read_bytes() for path in root.iterdir()}
+
+    def test_under_limit_reports_without_warning(self):
+        with tempfile.TemporaryDirectory() as repo:
+            root = pathlib.Path(repo)
+            (root / "RESULTS.codex.md").write_text(LOG)
+            result = run("size", root)
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("dated sections since the last compaction:", result.stdout)
+            self.assertNotIn("warning", result.stdout)
+
+    def test_over_limit_warns_and_changes_nothing(self):
+        with tempfile.TemporaryDirectory() as repo:
+            root = pathlib.Path(repo)
+            (root / "RESULTS.codex.md").write_text(LOG + "## 2026-11-17 — large\n\n" + "x" * 50 * 1024 + "\n")
+            before = self.files(root)
+            result = run("size", root)
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("warning:", result.stdout)
+            self.assertIn("compact-results-log", result.stdout)
+            self.assertEqual(self.files(root), before)
+
+    def test_custom_limit_in_kb(self):
+        with tempfile.TemporaryDirectory() as repo:
+            root = pathlib.Path(repo)
+            (root / "RESULTS.codex.md").write_text(LOG)
+            result = subprocess.run([sys.executable, "-I", str(SCRIPT), "size", str(root), "0"],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("warning:", result.stdout)
+
+    def test_missing_log_is_not_an_error(self):
+        with tempfile.TemporaryDirectory() as repo:
+            result = run("size", pathlib.Path(repo))
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("no RESULTS.codex.md", result.stdout)
+            self.assertEqual(list(pathlib.Path(repo).iterdir()), [])
+
+
 if __name__ == "__main__":
     unittest.main()

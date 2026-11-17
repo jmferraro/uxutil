@@ -7,5 +7,5 @@ Every skill the setup installs, for any agent, kept here once rather than in eac
 
 ## Skills:
 
-- [*compact-results-log/*](compact-results-log/SKILL.md) *(codex, omp)*: compacts a repository's *RESULTS.codex.md* failure log. It folds the dated review entries into a short index of failure families, each with a concrete prevention check, and moves the entries verbatim to *RESULTS.codex.archive.md*. *scripts/results_log.py* does the mechanical move (`archive`) and checks that nothing was lost (`check`).
+- [*compact-results-log/*](compact-results-log/SKILL.md) *(codex, omp)*: compacts a repository's *RESULTS.codex.md* failure log. It folds the dated review entries into a short index of failure families, each with a concrete prevention check, and moves the entries verbatim to *RESULTS.codex.archive.md*. *scripts/results_log.py* does the mechanical move (`archive`), checks that nothing was lost (`check`), and reports when the log has grown past 40 KB of dated entries (`size`), so agents can tell the user a compaction may be due. Only the user starts a compaction.
 - [*do-prompt/*](do-prompt/SKILL.md) *(omp)*: checks an implementation or repair prompt against its plan and specification and executes it only if every check passes; run by omp's */do-prompt* command.  Described in [*../omp/README.md*](../omp/README.md#skillsdo-promptskillmd).

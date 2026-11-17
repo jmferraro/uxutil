@@ -6,8 +6,13 @@
                                   RESULTS.codex.md to the end of RESULTS.codex.archive.md,
                                   verbatim, and save a pre-compaction copy for `check`
   results_log.py check <repo>     verify the compaction lost nothing
+  results_log.py size <repo> [kb] report the bytes of dated sections not yet compacted,
+                                  and print a warning above kb (default 40) suggesting
+                                  the user run compact-results-log; reads only, never
+                                  compacts, and always exits 0
 
-The agent writes the "Failure families" index between the two commands.
+The agent writes the "Failure families" index between the two commands. Only the
+user starts a compaction; `size` lets an agent tell the user when one may be due.
 """
 import hashlib
 import pathlib
@@ -18,6 +23,7 @@ DATED = re.compile(r"^## (?:\d{4}-\d{2}-\d{2}|\d{1,2} [A-Z][a-z]+ \d{4})\b", re.
 SECTION = re.compile(r"^## ", re.M)
 RC_ID = re.compile(r"\bRC-\d{3}\b")
 FAMILIES = "## Failure families"
+SIZE_WARNING_KB = 40
 
 
 def paths(repo):
@@ -77,7 +83,24 @@ def check(repo):
     return 1 if failures else 0
 
 
+def size(repo, limit_kb=SIZE_WARNING_KB):
+    """Report only: every dated section still in the log has not been compacted yet."""
+    main, _, _ = paths(repo)
+    if not main.is_file():
+        print(f"no RESULTS.codex.md in {repo}")
+        return 0
+    _, dated = split_dated(main.read_text())
+    dated_bytes = len("".join(dated).encode())
+    print(f"dated sections since the last compaction: {len(dated)}, {dated_bytes} bytes")
+    if dated_bytes > limit_kb * 1024:
+        print(f"warning: RESULTS.codex.md holds {dated_bytes // 1024} KB of dated entries (over {limit_kb} KB); "
+              "the user may wish to run the compact-results-log skill. Do not compact it yourself.")
+    return 0
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3 or sys.argv[1] not in ("archive", "check"):
+    if 4 == len(sys.argv) and "size" == sys.argv[1] and sys.argv[3].isdigit():
+        sys.exit(size(sys.argv[2], int(sys.argv[3])))
+    if len(sys.argv) != 3 or sys.argv[1] not in ("archive", "check", "size"):
         sys.exit(__doc__)
-    sys.exit({"archive": archive, "check": check}[sys.argv[1]](sys.argv[2]))
+    sys.exit({"archive": archive, "check": check, "size": size}[sys.argv[1]](sys.argv[2]))

@@ -1,6 +1,6 @@
 ---
 name: "compact-results-log"
-description: "Compact the repository's RESULTS.codex.md failure log. Fold its dated review entries into a short index of failure families, each with a concrete prevention check. Move the dated entries verbatim to RESULTS.codex.archive.md, so the file every coding round reads stays small and useful. Use when asked to compact or clean up RESULTS.codex.md, or when its dated sections since the last compaction exceed 10 or 40 KB. Never run it while another agent is working in the same repository."
+description: "Compact the repository's RESULTS.codex.md failure log. Fold its dated review entries into a short index of failure families, each with a concrete prevention check. Move the dated entries verbatim to RESULTS.codex.archive.md, so the file every coding round reads stays small and useful. Run only when the user explicitly asks to compact RESULTS.codex.md; never on an agent's own initiative, whatever the file's size. Never run it while another agent is working in the same repository."
 ---
 
 # Compact RESULTS.codex.md
@@ -19,7 +19,8 @@ need not be read before each round.
 `<skill dir>` below means the directory holding this `SKILL.md`: `~/.codex/skills/compact-results-log` or
 `~/.omp/agent/skills/compact-results-log`.
 
-1. **Preconditions.** Run from the repository root. No other agent may be working here. Record
+1. **Preconditions.** The user explicitly asked for this compaction; if not, stop and change nothing. Run from the
+   repository root. No other agent may be working here. Record
    `sha256sum RESULTS.codex.md`.
 2. **Read** the whole `RESULTS.codex.md`: header, any existing `## Failure families` and `## Open items` sections, and
    every dated section (`## YYYY-MM-DD — …` or `## D Month YYYY — …`), including its `### RC-NNN` entries.
@@ -61,3 +62,5 @@ need not be read before each round.
 - Do not change what any entry says happened. A family summarizes the cause and the check; it does not re-judge
   findings.
 - Neither file is committed unless the user asks.
+- Agents never start a compaction. `python3 <skill dir>/scripts/results_log.py size .` only reports the dated entries
+  not yet compacted, and warns above 40 KB, so the user can decide when to run this skill.

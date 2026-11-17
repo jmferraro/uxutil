@@ -57,6 +57,11 @@ coding/bug-fix round; writing it is review-triggered only.
   `RESULTS.codex.md`**: map applicable failure IDs to concrete checks before
   editing and explain any relevant entry treated as inapplicable. Reading the
   file or promising to comply is not the check.
+- After reading it, run
+  `python3 ~/.codex/skills/compact-results-log/scripts/results_log.py size .`
+  from the repository root. If it prints a warning, repeat the warning in your
+  response so the user can decide whether to compact the file. Never compact
+  it yourself.
 - Carry out those checks: preserve approved scope and exact-text approval;
   prove tests reach the actual failure path and detect the named defect;
   examine affected caller, cancellation, persistence and recovery interactions;
@@ -71,7 +76,8 @@ coding/bug-fix round; writing it is review-triggered only.
   does not replace specific evidence.
 - Keep failure entries after their fixes; append dated corrections and status
   updates only after receiving a review rather than rewriting history. The one
-  exception is the `compact-results-log` skill: it moves dated entries verbatim
+  exception is the `compact-results-log` skill, which only the user runs (never an
+  agent on its own initiative, whatever the file's size): it moves dated entries verbatim
   to `RESULTS.codex.archive.md` and folds them into the file's failure-family
   index. The archive is history and need not be read before each round. Avoid
   repeating recorded failure causes, but do not expand scope or bypass
