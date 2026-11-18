@@ -41,8 +41,8 @@ GitHub publishes pull requests differently (*refs/pull/*), so on a GitHub remote
 <br>Create a local tracking branch for a remote branch (default remote: *origin*) and check it out.  Reports an error if a branch of that name already exists.  *-v* is verbose.
 
 ### git-install-hook
-*git install-hook \[\<hook-name\>\]*
-<br>Symlink git hooks from the *hooks/* directory of this repository into the current repo's *.git/hooks/*.  With no argument, every executable hook found is installed; with a name, only that hook is installed.  Existing or stale links are replaced.
+*git install-hook \[-i\] \[-h\] \[\<hook-name\>\]*
+<br>Symlink git hooks from the *hooks/* directory of this repository into the current repo's *.git/hooks/*.  With no argument, every executable hook found is installed; with a name, only that hook is installed.  *-i* asks (y/N) before installing each hook.  Existing or stale links are replaced.  The exit status is non-zero if a hook could not be installed.
 
 ### git-no-commit
 *git no-commit \[--remove\] \[-h\]*

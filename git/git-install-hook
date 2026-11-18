@@ -1,16 +1,34 @@
 #!/usr/bin/env bash
 
-# Install git hooks from ~/uxutil/git/hooks/ into the current repo's
-# .git/hooks/ via symlink.
-#
-# Usage:
-#   git-install-hook                # installs every executable hook found in hooks/
-#   git-install-hook pre-push       # installs only the named hook
-#   git-install-hook <hook-name>    # installs any specific hook present in hooks/
+# git-install-hook - install the git hooks in ~/uxutil/git/hooks/ into the
+# current repo's .git/hooks/ via symlink; see usage() for the options
 
 # get directory for script, look for hooks sub-dir
-THIS_DIR=$(dirname ${BASH_SOURCE[0]})
+THIS_DIR=$(dirname "${BASH_SOURCE[0]}")
 HOOK_DIR=${THIS_DIR}/hooks
+
+usage() {
+  cat <<EOF
+Usage: git install-hook [-i] [-h] [<hook-name>]
+Symlink git hooks from ${HOOK_DIR} into the current repo's .git/hooks/.
+With a <hook-name>, only that hook is installed; with none, every executable
+hook found there is.
+  -i  ask (y/N) before installing each hook
+  -h  show this help
+EOF
+}
+
+unset HOOK INTERACTIVE
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -i) INTERACTIVE=1 ;;
+    -h) usage; exit 0 ;;
+    -*) usage >&2; exit 22 ;;
+    *) [[ -n $HOOK ]] && { usage >&2; exit 22; }; HOOK=$1 ;;
+  esac
+  shift
+done
+
 [[ ! -d $HOOK_DIR ]] && { echo "HOOK_DIR: ${HOOK_DIR} does not exist"; exit 2; }
 
 # resolve destination .git/hooks once (shared by all hooks installed in this run)
@@ -26,7 +44,7 @@ DEST_DIR=${ROOT_PATH}/.git/hooks
 install_hook() {
   local HOOK_NAME="$1"
   local SRC_BIN=${HOOK_DIR}/${HOOK_NAME}
-  [[ -e $SRC_BIN ]] && SRC_BIN=$(realpath $SRC_BIN)
+  [[ -e $SRC_BIN ]] && SRC_BIN=$(realpath "$SRC_BIN")
   [[ ! -e $SRC_BIN ]] && { echo "${SRC_BIN} does not exist"; return 2; }
   [[ ! -r $SRC_BIN ]] && { echo "${SRC_BIN} is not readable"; return 2; }
   [[ ! -x $SRC_BIN ]] && { echo "${SRC_BIN} is not executable"; return 2; }
@@ -35,44 +53,50 @@ install_hook() {
 
   if [[ -e $DEST_BIN ]]; then
     if [[ -L $DEST_BIN ]]; then # it's a symbolic link
-      local LINK=$(readlink ${DEST_BIN})
+      local LINK
+      LINK=$(readlink "$DEST_BIN")
       [[ -z ${LINK} ]] && { echo "FATAL error: unable to readlink ${DEST_BIN}"; return 5; }
-      if [[ ${LINK} != ${SRC_BIN} ]]; then
+      if [[ ${LINK} != "${SRC_BIN}" ]]; then
         echo "Replacing existing ${HOOK_NAME} symlink"
-        ln -fs ${SRC_BIN} ${DEST_BIN}
+        ln -fs "$SRC_BIN" "$DEST_BIN"
       else
         echo "${HOOK_NAME}-hook already present and correct"
       fi
     else
       # not a link; replace file with link
       echo "Replacing existing ${HOOK_NAME} file with symlink"
-      ln -fs ${SRC_BIN} ${DEST_BIN}
+      ln -fs "$SRC_BIN" "$DEST_BIN"
     fi
   else
     # doesn't exist or link is bad
-    local OPT_F=
-    if [[ -L $DEST_BIN ]]; then
-      echo "Replacing bad ${HOOK_NAME} symlink"
-      OPT_F=-f
-    else
-      echo "Installing new ${HOOK_NAME} hook"
-    fi
-    ln -s $OPT_F ${SRC_BIN} ${DEST_BIN}
+    [[ -L $DEST_BIN ]] && echo "Replacing bad ${HOOK_NAME} symlink" || echo "Installing new ${HOOK_NAME} hook"
+    ln -fs "$SRC_BIN" "$DEST_BIN"
   fi
 }
 
-if [[ -n "$1" ]]; then
-  # specific hook requested
-  install_hook "$1"
+# ask <hook-name> - true if the hook should be installed: always, unless -i
+# was given and the answer is not y
+ask() {
+  [[ -z $INTERACTIVE ]] && return 0
+  local ANSWER
+  read -r -p "Install $1? [y/N] " ANSWER
+  [[ $ANSWER == [yY]* ]]
+}
+
+# the hooks to install: the one named, or every executable one in hooks/
+if [[ -n $HOOK ]]; then
+  HOOKS=("$HOOK")
 else
-  # install everything executable in hooks/
-  shopt -s nullglob
-  found=0
-  for hook in ${HOOK_DIR}/*; do
-    [[ -f $hook && -x $hook ]] || continue
-    install_hook "$(basename ${hook})"
-    found=1
+  HOOKS=()
+  for F in "${HOOK_DIR}"/*; do
+    [[ -f $F && -x $F ]] && HOOKS+=("${F##*/}")
   done
-  [[ 0 -eq $found ]] && { echo "No executable hooks found in ${HOOK_DIR}"; exit 2; }
 fi
-exit 0
+[[ ${#HOOKS[@]} -eq 0 ]] && { echo "No executable hooks found in ${HOOK_DIR}"; exit 2; }
+
+RET=0
+for H in "${HOOKS[@]}"; do
+  ask "$H" || continue
+  install_hook "$H" || RET=$?
+done
+exit $RET
