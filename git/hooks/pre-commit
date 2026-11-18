@@ -39,42 +39,43 @@ for FN in "${SYMLINK_FILES[@]}"; do
   RET=$((RET+1))
 done
 
-# --- optional rule extensions --------------------------------------------
-# Keep this hook generic: per-project or per-firm rules live in an optional
-# extension file that is sourced here (if present and readable).  A sourced
-# extension has full access to this script and may:
-#   * add banned patterns:       FAIL_REGEX+=("\bWIP\b")
-#   * skip whole files:          hook_skip_file()   { [[ "$1" =~ ^vendor/ ]]; }
-#   * except one rule per file:  hook_skip_regex()  { [[ "$1" == '\bNULL\b' && "$2" =~ \.inc$ ]]; }
-#   * add extra per-file checks: hook_extra_check() { grep -q BADAPI "$2" && echo "$1 uses BADAPI"; }
-# hook_skip_* return 0 (true) to skip; hook_extra_check echoes one line per
-# failure.
-#
-# The extension file's path is set via git config:
-#   git config hooks.precommitRules <path>
-# Set it `--global` once to cover every repo, or per-repo to override.  Point
-# it at a file OUTSIDE any repo (e.g. ~/.config/git/pre-commit-rules) so one
-# file is shared everywhere and can never be accidentally committed.
-# See pre-commit-rules.example for a template.
-EXT=$(git config --get hooks.precommitRules 2>/dev/null)
-# shellcheck source=/dev/null
-[[ -n $EXT && -r $EXT ]] && source "$EXT"
+# --- .gitrules: [ignore-commit-scan] -----------------------------------------
+# A file whose path contains an entry of the [ignore-commit-scan] section of the
+# repository's .gitrules, as whole path components (e.g. "firedancer" or
+# "patch/firedancer"), is not scanned; see README.md.  .gitrules lives in the
+# main checkout's root, so linked worktrees share it.
+COMMON=$(cd "$(git rev-parse --git-common-dir)" && pwd)
+RULES_FILE=${COMMON%/.git}/.gitrules
+
+# rules_section NAME - print the entries of [NAME] in RULES_FILE, one per line,
+# without comments ('#' to end of line) or surrounding whitespace
+rules_section() {
+  [[ -r $RULES_FILE ]] || return 0
+  awk -v S="[$1]" '{ sub(/#.*/, ""); gsub(/^[ \t\r]+|[ \t\r]+$/, "") }
+    /^\[/ { ON = ($0 == S); next } ON && NF' "$RULES_FILE"
+}
+
+mapfile -t IGNORE_SCAN < <(rules_section ignore-commit-scan)
+
+# scan_ignored FILE - true if FILE's path contains an [ignore-commit-scan] entry
+scan_ignored() {
+  local E
+  for E in "${IGNORE_SCAN[@]}"; do
+    [[ /$1/ == */"$E"/* ]] && return 0
+  done
+  return 1
+}
 
 # loop over all the files
 for FN in "${FILES[@]}"; do
   [[ -d "$FN" ]] && { echo "Skipping directory: ${FN}"; continue; }
   [[ "$FN" =~ \.xz$ ]] && { echo "Skipping .xz file: ${FN}"; continue; }
-  # project-specific whole-file skips (see rule extensions above)
-  if declare -F hook_skip_file >/dev/null && hook_skip_file "$FN"; then
-    echo "Skipping (project rule): ${FN}"; continue
-  fi
+  scan_ignored "$FN" && { echo "Skipping (.gitrules): ${FN}"; continue; }
   for RE in "${FAIL_REGEX[@]}"; do
     # Skip NULL check for .c, .h, and .md files (NULL is valid in C, use nullptr in C++)
     if [[ "$RE" == '\bNULL\b' && "$FN" =~ \.(c|h|md)$ ]]; then
       continue
     fi
-    # project-specific per-rule exceptions (see rule extensions above)
-    declare -F hook_skip_regex >/dev/null && hook_skip_regex "$RE" "$FN" && continue
     if grep -q -E "${RE}" "${ROOT_PATH}${FN}"; then
       echo "$FN contains $RE"
       RET=$((RET+1))
@@ -92,12 +93,6 @@ for FN in "${FILES[@]}"; do
       echo "$FN has TAB characters"
       RET=$((RET+1))
     fi
-  fi
-  # project-specific extra checks (one echoed line per failure)
-  if declare -F hook_extra_check >/dev/null; then
-    while IFS= read -r MSG; do
-      [[ -n $MSG ]] && { echo "$MSG"; RET=$((RET+1)); }
-    done < <(hook_extra_check "$FN" "${ROOT_PATH}${FN}")
   fi
 done
 

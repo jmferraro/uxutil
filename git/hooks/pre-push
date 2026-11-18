@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# pre-push - refuse a push to any branch listed in the [restrict-push] section
+# of the repository's .gitrules (see README.md), and refuse to push any commit
+# whose message carries a co-author or attribution tag.  With no .gitrules, or
+# no such section, every branch may be pushed to.
+# Install into a repo with: git install-hook pre-push
+
+# .gitrules lives in the main checkout's root, so linked worktrees share it
+COMMON=$(cd "$(git rev-parse --git-common-dir)" && pwd)
+RULES_FILE=${COMMON%/.git}/.gitrules
+
+# the tags setup/claude/hooks/no-attribution.sh blocks: a trailer, or a credit
+# line, at the start of a line of the message (matched ignoring case)
+ATTRIBUTION='^[[:space:]]*(co-authored-by|co-developed-by|assisted-by|generated-by|claude-session)[[:space:]]*:'
+ATTRIBUTION+='|^[[:space:]]*(🤖[[:space:]]*)?generated (with|by) |🤖[[:space:]]*generated (with|by) '
+
+# rules_section NAME - print the entries of [NAME] in RULES_FILE, one per line,
+# without comments ('#' to end of line) or surrounding whitespace
+rules_section() {
+  [[ -r $RULES_FILE ]] || return 0
+  awk -v S="[$1]" '{ sub(/#.*/, ""); gsub(/^[ \t\r]+|[ \t\r]+$/, "") }
+    /^\[/ { ON = ($0 == S); next } ON && NF' "$RULES_FILE"
+}
+
+# check_branch REMOTE_REF - fail if REMOTE_REF is a [restrict-push] branch
+check_branch() {
+  local BRANCH
+  for BRANCH in "${RESTRICTED[@]}"; do
+    [[ $1 == "refs/heads/$BRANCH" ]] || continue
+    echo "ERROR: push to $BRANCH is blocked by .gitrules [restrict-push]; use a PR." >&2
+    RET=1
+  done
+}
+
+# check_messages LOCAL_SHA - fail for each commit being pushed (one not yet on
+# any remote-tracking branch) whose message carries an attribution tag
+check_messages() {
+  local C
+  [[ $1 =~ ^0+$ ]] && return   # deleting a ref pushes no commits
+  while IFS= read -r C; do
+    echo "ERROR: commit $C carries a co-author or attribution tag; remove it before pushing." >&2
+    RET=1
+  done < <(git log -i -E --grep="$ATTRIBUTION" --format='%h %s' "$1" --not --remotes)
+}
+
+mapfile -t RESTRICTED < <(rules_section restrict-push)
+RET=0
+# git gives one line per ref pushed: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _ LOCAL_SHA REMOTE_REF _; do
+  check_branch "$REMOTE_REF"
+  check_messages "$LOCAL_SHA"
+done
+exit $RET

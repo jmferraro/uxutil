@@ -20,6 +20,11 @@ Prints each failing check, with the output of the run that failed, and a summary
 <br>Tests for [*git-alias*](../git/README.md#git-alias).  Each test makes a scratch repository and a user config file of its own, with the real global and system git config switched off, so nothing outside the scratch directory is read or touched.  With *TEST* names (e.g. *test_help_scopes*) only those tests run.
 Prints each failing check, with the output of the run that failed, and a summary of the checks passed and failed; the exit status is 0 only if every check passed.
 
+### test-git-hooks.sh
+*tests/test-git-hooks.sh \[TEST...\]*
+<br>Tests for the [*pre-commit*](../git/hooks/README.md#pre-commit) and [*pre-push*](../git/hooks/README.md#pre-push) hooks and the [*.gitrules*](../git/hooks/README.md#gitrules) file they read.  Each test makes a scratch repository and a user config file of its own, with the real global and system git config switched off, so nothing outside the scratch directory is read or touched; one test pushes to a scratch bare repository through the installed hook.  With *TEST* names (e.g. *test_pp_real_push*) only those tests run.
+Prints each failing check, with the output of the run that failed, and a summary of the checks passed and failed; the exit status is 0 only if every check passed.
+
 ### test-setup-git.sh
 *tests/test-setup-git.sh \[TEST...\]*
 <br>Tests for [*setup-git.sh*](../setup/README.md#setup-gitsh).  Each test runs a copy of the script against a fixture *gitconfig* and a global git config file of its own (*GIT_CONFIG_GLOBAL*), so the real *~/.gitconfig* is never read or touched.  With *TEST* names (e.g. *test_add*) only those tests run.
