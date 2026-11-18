@@ -55,13 +55,23 @@ rules_section() {
     /^\[/ { ON = ($0 == S); next } ON && NF' "$RULES_FILE"
 }
 
-mapfile -t IGNORE_SCAN < <(rules_section ignore-commit-scan)
+# a leading '/' or './' is dropped; a trailing '/' (kept as one) marks a directory
+mapfile -t IGNORE_SCAN < <(rules_section ignore-commit-scan | sed -E 's#^(\./|/)+##; s#/+$#/#')
 
-# scan_ignored FILE - true if FILE's path contains an [ignore-commit-scan] entry
+# an entry marked as a directory must not name anything else (a file, or a link
+# to one) in the checkout root
+for E in "${IGNORE_SCAN[@]}"; do
+  P=${ROOT_PATH}${E%/}
+  [[ $E == */ && -e $P && ! -d $P ]] && { echo ".gitrules [ignore-commit-scan]: '$E' is not a directory"; RET=$((RET+1)); }
+done
+
+# scan_ignored FILE - true if FILE's path contains an [ignore-commit-scan] entry;
+# an entry marked as a directory matches only a directory, never FILE itself
 scan_ignored() {
-  local E
+  local E S
   for E in "${IGNORE_SCAN[@]}"; do
-    [[ /$1/ == */"$E"/* ]] && return 0
+    [[ $E == */ ]] && S=/$1 || S=/$1/
+    [[ $S == */"${E%/}"/* ]] && return 0
   done
   return 1
 }

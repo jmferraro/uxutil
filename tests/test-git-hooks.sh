@@ -47,6 +47,17 @@ stage_fixme() {
   done
 }
 
+# stage_clean PATH... - create each PATH in R holding nothing the hook refuses,
+# and stage it
+stage_clean() {
+  local P
+  for P in "$@"; do
+    mkdir -p "$R/$(dirname "$P")"
+    echo "x = 1;" > "$R/$P"
+    git -C "$R" add -- "$P"
+  done
+}
+
 # run CMD... - run CMD in the repository; output to $T/out, status to RC
 run() {
   (cd "$R" && "$@") > "$T/out" 2>&1
@@ -166,6 +177,78 @@ test_pc_no_rules() {
   check "firedancer file scanned" out_has "patch/firedancer/a.cpp contains"
   check "other file scanned" out_has "src/b.cpp contains"
   check "two failures" rc_is 2
+}
+
+# ---- pre-commit: [ignore-commit-scan] entry spellings -----------------------
+
+# slash_skipped NAME ENTRY PATH - ENTRY in [ignore-commit-scan] skips PATH
+slash_skipped() {
+  repo_new "$1"
+  printf '[ignore-commit-scan]\n%s\n' "$2" > "$R/.gitrules"
+  stage_fixme "$3"
+  run bash "$PRE_COMMIT"
+  check "$2 skips $3" out_lacks "$3 contains"
+  check "passes" rc_is 0
+}
+
+# a leading '/' or './', or a trailing '/', does not stop an entry matching
+test_pc_ignore_slash_spellings() {
+  slash_skipped pc_ignore_trailing_slash firedancer/ patch/firedancer/a.cpp
+  slash_skipped pc_ignore_trailing_slash_root firedancer/ firedancer/a.cpp
+  slash_skipped pc_ignore_leading_slash /firedancer patch/firedancer/a.cpp
+  slash_skipped pc_ignore_dot_slash ./firedancer patch/firedancer/a.cpp
+  slash_skipped pc_ignore_both_slashes /patch/firedancer/ patch/firedancer/a.cpp
+}
+
+# an entry ending in '/' that names a file in the checkout root is an error
+test_pc_dir_entry_names_file() {
+  repo_new pc_dir_entry_names_file
+  printf '[ignore-commit-scan]\nfoo.cpp/\n' > "$R/.gitrules"
+  stage_clean foo.cpp src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "fails" rc_not 0
+  check "names the entry" out_has "'foo.cpp/' is not a directory"
+}
+
+# an entry ending in '/' that names a link to a file is an error
+test_pc_dir_entry_names_file_link() {
+  repo_new pc_dir_entry_names_file_link
+  printf '[ignore-commit-scan]\nfoo.cpp/\n' > "$R/.gitrules"
+  stage_clean src/real.cpp
+  ln -s src/real.cpp "$R/foo.cpp"   # an untracked, local link
+  run bash "$PRE_COMMIT"
+  check "fails" rc_not 0
+  check "names the entry" out_has "'foo.cpp/' is not a directory"
+}
+
+# green control: an entry ending in '/' may name a link to a directory
+test_pc_dir_entry_link_to_dir() {
+  repo_new pc_dir_entry_link_to_dir
+  printf '[ignore-commit-scan]\nfd/\n' > "$R/.gitrules"
+  stage_clean patch/firedancer/a.cpp
+  ln -s patch/firedancer "$R/fd"    # an untracked, local link
+  run bash "$PRE_COMMIT"
+  check "passes" rc_is 0
+}
+
+# green control: an entry ending in '/' that names nothing in the checkout root
+# is not an error (it may match a directory deeper in the tree)
+test_pc_dir_entry_absent() {
+  repo_new pc_dir_entry_absent
+  printf '[ignore-commit-scan]\nnothere/\n' > "$R/.gitrules"
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "passes" rc_is 0
+}
+
+# green control: an entry ending in '/' matches only a directory, so a file of
+# that name deeper in the tree is still scanned
+test_pc_dir_entry_skips_no_file() {
+  repo_new pc_dir_entry_skips_no_file
+  printf '[ignore-commit-scan]\nfoo.cpp/\n' > "$R/.gitrules"
+  stage_fixme src/foo.cpp
+  run bash "$PRE_COMMIT"
+  check "file still scanned" out_has "src/foo.cpp contains"
 }
 
 # ---- pre-push: [restrict-push] -----------------------------------------------
@@ -297,6 +380,8 @@ TESTS=(
   test_pc_ignore_dir_name test_pc_ignore_subpath test_pc_rules_in_worktree
   test_pc_partial_name_not_ignored test_pc_other_section_not_ignored test_pc_no_rules
   test_pc_precommit_rules_ignored
+  test_pc_ignore_slash_spellings test_pc_dir_entry_names_file test_pc_dir_entry_names_file_link
+  test_pc_dir_entry_link_to_dir test_pc_dir_entry_absent test_pc_dir_entry_skips_no_file
   test_pp_listed_branch_blocked test_pp_no_rules_allows_all test_pp_unlisted_branch_allowed
   test_pp_main_thru_listed_blocked test_pp_real_push
   test_pp_attribution_real_push test_pp_attribution_tags test_pp_attribution_words_allowed

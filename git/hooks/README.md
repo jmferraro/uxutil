@@ -51,7 +51,11 @@ firedancer
 ```
 An *[ignore-commit-scan]* entry matches whole path components anywhere in a
 file's path: *firedancer* skips *patch/firedancer/a.cpp* (but *fire* does not),
-and *patch/firedancer* skips everything under that directory.
+and *patch/firedancer* skips everything under that directory.  A leading */*
+or *./* is ignored.  A trailing */* marks a directory: *firedancer/* matches only
+a directory of that name, never a file, and the hook fails with an error if the
+entry names anything else in the checkout root (*foo.cpp/* where *foo.cpp* is a
+file or a link to one).  A link to a directory is fine.
 
 *.gitrules* is meant to stay local to the checkout: keep it out of commits by
 adding it to *.git/info/exclude*, or to your global ignore file
