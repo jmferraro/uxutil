@@ -59,4 +59,6 @@ file or a link to one).  A link to a directory is fine.
 
 *.gitrules* is meant to stay local to the checkout: keep it out of commits by
 adding it to *.git/info/exclude*, or to your global ignore file
-(*~/.config/git/ignore*) to cover every repo.
+(*~/.config/git/ignore*) to cover every repo.  If git does not ignore it (or it
+is tracked), pre-commit prints a warning with the command that adds it to
+*.git/info/exclude*; the commit still goes ahead.

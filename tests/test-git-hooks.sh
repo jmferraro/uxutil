@@ -24,7 +24,8 @@ export GIT_CONFIG_SYSTEM=/dev/null
 
 # repo_new NAME - set T to a new test dir holding a repository (R) on branch
 # 'work' (so pre-commit's main/master restriction never applies) with one
-# commit, and a user config file (GIT_CONFIG_GLOBAL) of its own
+# commit, .gitrules listed in its .git/info/exclude, and a user config file
+# (GIT_CONFIG_GLOBAL) of its own
 repo_new() {
   TEST="$1"
   T="$WORK/$1"
@@ -35,6 +36,7 @@ repo_new() {
   printf '[user]\n  name = Test\n  email = test@example.com\n' > "$GIT_CONFIG_GLOBAL"
   git init -q -b work "$R"
   git -C "$R" commit -q --allow-empty -m init
+  echo .gitrules >> "$R/.git/info/exclude"
 }
 
 # stage_fixme PATH... - create each PATH in R holding a FIXME marker, and stage it
@@ -251,6 +253,59 @@ test_pc_dir_entry_skips_no_file() {
   check "file still scanned" out_has "src/foo.cpp contains"
 }
 
+# ---- pre-commit: .gitrules must be ignored ----------------------------------
+
+# sanctioned inversion (user changed the rule from an error to a warning): a
+# .gitrules that git does not ignore could be committed, so the hook warns,
+# says how to fix it, and still passes
+test_pc_rules_not_ignored() {
+  repo_new pc_rules_not_ignored
+  : > "$R/.git/info/exclude"
+  printf '[ignore-commit-scan]\nfiredancer\n' > "$R/.gitrules"
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "warns" out_has "WARNING: .gitrules is not ignored"
+  check "says how" out_has "info/exclude"
+  check "still passes" rc_is 0
+}
+
+# sanctioned inversion, as above: a tracked .gitrules draws the warning even
+# when .gitignore lists it
+test_pc_rules_tracked() {
+  repo_new pc_rules_tracked
+  : > "$R/.git/info/exclude"
+  echo .gitrules > "$R/.gitignore"
+  printf '[ignore-commit-scan]\nfiredancer\n' > "$R/.gitrules"
+  git -C "$R" add -f .gitignore .gitrules
+  git -C "$R" commit -q -m rules
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "warns" out_has "WARNING: .gitrules is not ignored"
+  check "says how" out_has "info/exclude"
+  check "still passes" rc_is 0
+}
+
+# green control: .gitignore may be what ignores .gitrules
+test_pc_rules_in_gitignore() {
+  repo_new pc_rules_in_gitignore
+  : > "$R/.git/info/exclude"
+  echo .gitrules > "$R/.gitignore"
+  printf '[ignore-commit-scan]\nfiredancer\n' > "$R/.gitrules"
+  git -C "$R" add .gitignore
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "passes" rc_is 0
+}
+
+# green control: with no .gitrules there is nothing to ignore
+test_pc_no_rules_not_ignored() {
+  repo_new pc_no_rules_not_ignored
+  : > "$R/.git/info/exclude"
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "passes" rc_is 0
+}
+
 # ---- pre-push: [restrict-push] -----------------------------------------------
 
 test_pp_listed_branch_blocked() {
@@ -382,6 +437,7 @@ TESTS=(
   test_pc_precommit_rules_ignored
   test_pc_ignore_slash_spellings test_pc_dir_entry_names_file test_pc_dir_entry_names_file_link
   test_pc_dir_entry_link_to_dir test_pc_dir_entry_absent test_pc_dir_entry_skips_no_file
+  test_pc_rules_not_ignored test_pc_rules_tracked test_pc_rules_in_gitignore test_pc_no_rules_not_ignored
   test_pp_listed_branch_blocked test_pp_no_rules_allows_all test_pp_unlisted_branch_allowed
   test_pp_main_thru_listed_blocked test_pp_real_push
   test_pp_attribution_real_push test_pp_attribution_tags test_pp_attribution_words_allowed

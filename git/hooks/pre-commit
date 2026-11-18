@@ -55,6 +55,14 @@ rules_section() {
     /^\[/ { ON = ($0 == S); next } ON && NF' "$RULES_FILE"
 }
 
+# .gitrules is local to the checkout, so warn if git does not ignore it (through
+# .gitignore, .git/info/exclude or the global ignore file); a tracked .gitrules
+# is not ignored
+if [[ -e $RULES_FILE ]] && ! git -C "${RULES_FILE%/*}" check-ignore -q .gitrules; then
+  echo "WARNING: .gitrules is not ignored, so it could be committed; to ignore it:"
+  echo "  echo .gitrules >> \"$COMMON/info/exclude\""
+fi
+
 # a leading '/' or './' is dropped; a trailing '/' (kept as one) marks a directory
 mapfile -t IGNORE_SCAN < <(rules_section ignore-commit-scan | sed -E 's#^(\./|/)+##; s#/+$#/#')
 
