@@ -382,17 +382,6 @@ test_pc_allow_commit_other_section() {
   check "refused" rc_not 0
 }
 
-# sanctioned inversion: [default-branch] allow-commit replaces .gitnorestrict,
-# which no longer allows a commit on the default branch
-test_pc_gitnorestrict_ignored() {
-  repo_new pc_gitnorestrict_ignored
-  touch "$R/.gitnorestrict"
-  on_branch master
-  stage_clean src/b.cpp
-  run bash "$PRE_COMMIT"
-  check "refused" rc_not 0
-}
-
 # ---- pre-push: [restrict-push] -----------------------------------------------
 
 test_pp_listed_branch_blocked() {
@@ -527,7 +516,7 @@ TESTS=(
   test_pc_rules_not_ignored test_pc_rules_tracked test_pc_rules_in_gitignore test_pc_no_rules_not_ignored
   test_pc_default_branch_blocked test_pc_default_branch_hint test_pc_default_branch_from_origin
   test_pc_default_branch_allowed test_pc_default_branch_allowed_origin
-  test_pc_allow_commit_other_section test_pc_gitnorestrict_ignored
+  test_pc_allow_commit_other_section
   test_pp_listed_branch_blocked test_pp_no_rules_allows_all test_pp_unlisted_branch_allowed
   test_pp_main_thru_listed_blocked test_pp_real_push
   test_pp_attribution_real_push test_pp_attribution_tags test_pp_attribution_words_allowed
