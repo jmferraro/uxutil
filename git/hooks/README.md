@@ -17,7 +17,12 @@ does exactly this for every executable hook found here.
 
 It also rejects tracked symlinks, warns when a file is both staged and further
 modified in the working tree, and blocks commits made directly to the default
-branch (*master*/*main*) unless a *.gitnorestrict* file exists in the repo root.
+branch unless the *[default-branch]* section of the repo's *.gitrules* holds
+*allow-commit*.  The default branch is the one *origin/HEAD* names (recorded by
+*git clone* from the remote, whatever hosts it: GitHub, Bitbucket or any other
+git server); with no *origin/HEAD*, *master* and *main* both count.  It is read
+locally, so after the remote's default branch changes, update it with
+`git remote set-head origin --auto`.
 
 Files matching an entry of the *[ignore-commit-scan]* section of the repo's
 *.gitrules* (see below) are not scanned.
@@ -48,7 +53,12 @@ main-thru
 
 [ignore-commit-scan]     # pre-commit: paths whose files are not scanned
 firedancer
+
+[default-branch]         # pre-commit: rules for the default branch
+allow-commit             # commits may be made on it
 ```
+*[default-branch]* holds rules rather than names; *allow-commit* is the only
+one.  It replaces the old *.gitnorestrict* file, which is no longer read.
 An *[ignore-commit-scan]* entry matches whole path components anywhere in a
 file's path: *firedancer* skips *patch/firedancer/a.cpp* (but *fire* does not),
 and *patch/firedancer* skips everything under that directory.  A leading */*

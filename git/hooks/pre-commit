@@ -132,8 +132,9 @@ if [[ $RET -gt 0 ]]; then
   exit $RET
 fi
 
-# master/main restriction does not apply if .gitnorestrict is present in project root
-if [[ ! -e ${ROOT_PATH}/.gitnorestrict ]]; then
+# no commits on the default branch, unless the [default-branch] section of
+# .gitrules holds allow-commit
+if ! rules_section default-branch | grep -qx allow-commit; then
   # get the name of the default branch from the remote repo
 
   BRNAM=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
@@ -146,14 +147,15 @@ if [[ ! -e ${ROOT_PATH}/.gitnorestrict ]]; then
   if [[ 0 -eq $RC && -n $BRANCH ]]; then
     if [[ -n $BRNAM ]]; then
       # use remote name
-      [[ $BRNAM == $BRANCH ]] && RESTRICT=1
+      [[ $BRNAM == "$BRANCH" ]] && RESTRICT=1
     else # try usual 'main' branch names
-      [[ 'master' == $BRANCH ]] && RESTRICT=1
-      [[ 'main' == $BRANCH ]] && RESTRICT=1
+      [[ 'master' == "$BRANCH" ]] && RESTRICT=1
+      [[ 'main' == "$BRANCH" ]] && RESTRICT=1
     fi
 
     if [[ -n $RESTRICT && ${#FILES[@]} -ne 0 ]]; then
       echo "Should not be committing to '$BRANCH' branch"
+      echo "  (to allow it, add allow-commit to the [default-branch] section of .gitrules)"
       RET=$((RET+1))
     fi
   fi

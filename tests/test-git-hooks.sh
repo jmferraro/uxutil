@@ -306,6 +306,93 @@ test_pc_no_rules_not_ignored() {
   check "passes" rc_is 0
 }
 
+# ---- pre-commit: commits on the default branch ------------------------------
+
+# on_branch NAME - check out a new branch NAME in R
+on_branch() { git -C "$R" checkout -q -b "$1"; }
+
+# remote_default NAME - point origin/HEAD in R at origin/NAME, as git clone
+# records the remote's default branch
+remote_default() {
+  git -C "$R" update-ref "refs/remotes/origin/$1" HEAD
+  git -C "$R" symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$1"
+}
+
+# green control: with no origin/HEAD, a commit on master is refused
+test_pc_default_branch_blocked() {
+  repo_new pc_default_branch_blocked
+  on_branch master
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "refused" rc_not 0
+  check "says why" out_has "Should not be committing to 'master' branch"
+}
+
+# the refusal says how to allow commits on the default branch
+test_pc_default_branch_hint() {
+  repo_new pc_default_branch_hint
+  on_branch main
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "names the rule" out_has "allow-commit"
+}
+
+# green control: the default branch comes from origin/HEAD when it is set
+test_pc_default_branch_from_origin() {
+  repo_new pc_default_branch_from_origin
+  remote_default main-thru
+  on_branch main-thru
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "refused on main-thru" out_has "Should not be committing to 'main-thru' branch"
+  on_branch master
+  run bash "$PRE_COMMIT"
+  check "master allowed" rc_is 0
+}
+
+# [default-branch] allow-commit allows commits on the default branch
+test_pc_default_branch_allowed() {
+  repo_new pc_default_branch_allowed
+  printf '[default-branch]\nallow-commit\n' > "$R/.gitrules"
+  on_branch master
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "passes" rc_is 0
+}
+
+# ... also when the default branch comes from origin/HEAD (comments and
+# indentation ignored)
+test_pc_default_branch_allowed_origin() {
+  repo_new pc_default_branch_allowed_origin
+  printf '[default-branch]  # commits go straight in\n  allow-commit  # here too\n' > "$R/.gitrules"
+  remote_default main-thru
+  on_branch main-thru
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "passes" rc_is 0
+}
+
+# green control: allow-commit in another section allows nothing
+test_pc_allow_commit_other_section() {
+  repo_new pc_allow_commit_other_section
+  printf '[restrict-push]\nallow-commit\n' > "$R/.gitrules"
+  on_branch master
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "refused" rc_not 0
+}
+
+# sanctioned inversion: [default-branch] allow-commit replaces .gitnorestrict,
+# which no longer allows a commit on the default branch
+test_pc_gitnorestrict_ignored() {
+  repo_new pc_gitnorestrict_ignored
+  touch "$R/.gitnorestrict"
+  on_branch master
+  stage_clean src/b.cpp
+  run bash "$PRE_COMMIT"
+  check "refused" rc_not 0
+}
+
 # ---- pre-push: [restrict-push] -----------------------------------------------
 
 test_pp_listed_branch_blocked() {
@@ -438,6 +525,9 @@ TESTS=(
   test_pc_ignore_slash_spellings test_pc_dir_entry_names_file test_pc_dir_entry_names_file_link
   test_pc_dir_entry_link_to_dir test_pc_dir_entry_absent test_pc_dir_entry_skips_no_file
   test_pc_rules_not_ignored test_pc_rules_tracked test_pc_rules_in_gitignore test_pc_no_rules_not_ignored
+  test_pc_default_branch_blocked test_pc_default_branch_hint test_pc_default_branch_from_origin
+  test_pc_default_branch_allowed test_pc_default_branch_allowed_origin
+  test_pc_allow_commit_other_section test_pc_gitnorestrict_ignored
   test_pp_listed_branch_blocked test_pp_no_rules_allows_all test_pp_unlisted_branch_allowed
   test_pp_main_thru_listed_blocked test_pp_real_push
   test_pp_attribution_real_push test_pp_attribution_tags test_pp_attribution_words_allowed
